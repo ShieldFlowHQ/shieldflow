@@ -1,0 +1,60 @@
+name: "Feature request"
+description: "Have an idea? Pitch it with enough detail to build it."
+title: "[feature]: "
+labels:
+  - type/feature
+  - status/needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Great ideas are welcome.
+
+        Help us understand the real-world problem first, then the shiny solution.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      placeholder: "Our agent pipeline needs ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      placeholder: "Add support for ..."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: "We tried ... but ..."
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - area/core
+        - area/sdk
+        - area/docs
+        - area/examples
+        - area/ci
+        - area/security
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - priority/low
+        - priority/medium
+        - priority/high
+    validations:
+      required: true
+  - type: textarea
+    id: success
+    attributes:
+      label: What does success look like?
+      placeholder: "Done means we can ..."

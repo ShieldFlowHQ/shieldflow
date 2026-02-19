@@ -1,0 +1,76 @@
+name: Keeper Triage
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  issues: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply taxonomy labels and welcome note
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const labelsToAdd = new Set(["status/needs-triage"]);
+            const text = `${issue.title}\n${issue.body || ""}`.toLowerCase();
+
+            if (/(bug|error|fail|broken|exception|traceback)/.test(text)) labelsToAdd.add("type/bug");
+            if (/(feature|enhancement|proposal|request)/.test(text)) labelsToAdd.add("type/feature");
+
+            const areaMap = [
+              ["area/security", /(security|prompt injection|auth|identity|token|attack)/],
+              ["area/docs", /(docs|documentation|readme|guide)/],
+              ["area/examples", /(example|sample|tutorial)/],
+              ["area/ci", /(ci|workflow|github actions|pipeline)/],
+              ["area/sdk", /(sdk|api|client|python)/],
+              ["area/core", /(core|engine|runtime|policy|verification)/],
+            ];
+
+            for (const [label, regex] of areaMap) {
+              if (regex.test(text)) {
+                labelsToAdd.add(label);
+                break;
+              }
+            }
+
+            const existing = new Set(issue.labels.map((l) => l.name));
+            const delta = [...labelsToAdd].filter((l) => !existing.has(l));
+            if (delta.length > 0) {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: issue.number,
+                labels: delta,
+              });
+            }
+
+            const marker = "<!-- keeper-triage-note -->";
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: issue.number,
+              per_page: 100,
+            });
+
+            const existingBotComment = comments.find(
+              (c) => c.user?.type === "Bot" && c.body?.includes(marker),
+            );
+
+            const body = `${marker}\n🛡️ **ShieldFlow Keeper here.** Thanks for opening this issue.\n\nI added initial labels so humans can triage faster without summoning chaos goblins.\nIf anything looks mislabeled, drop a quick note and we'll retune.`;
+
+            if (!existingBotComment) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body,
+              });
+            }

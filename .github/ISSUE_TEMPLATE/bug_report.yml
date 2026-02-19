@@ -1,0 +1,74 @@
+name: "Bug report"
+description: "Something went sideways? Tell us and we'll hunt it down."
+title: "[bug]: "
+labels:
+  - type/bug
+  - status/needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report — you're helping make ShieldFlow tougher in production.
+
+        Please be specific. We like quirky. We love reproducible.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: A clear summary of the bug.
+      placeholder: "Expected X, got Y, logs cried softly."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Give us a copy-pasteable repro when possible.
+      placeholder: |
+        1. Run ...
+        2. Send ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Pick the closest match.
+      options:
+        - area/core
+        - area/sdk
+        - area/docs
+        - area/examples
+        - area/ci
+        - area/security
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - priority/low
+        - priority/medium
+        - priority/high
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment details
+      description: OS, Python version, package versions, deployment context.
+      placeholder: "Ubuntu 24.04, Python 3.12, shieldflow 0.x"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / stack traces
+      description: Redact secrets before posting.
+      render: shell

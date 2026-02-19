@@ -1,0 +1,340 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ShieldFlow Example Configuration
+# Version: 0.1.0
+#
+# Copy this file and edit it for your deployment.  Every option is documented
+# with its default value.
+#
+# Load it in code:
+#   sf = ShieldFlow(config="shieldflow.yaml")
+#
+# Load it in the proxy:
+#   shieldflow proxy --config shieldflow.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROXY SERVER CONFIG
+# Only needed when running shieldflow in proxy mode.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+upstream:
+  # Base URL of the upstream LLM provider.  The proxy will forward requests
+  # to {url}/v1/chat/completions — omit the /v1 suffix here.
+  #
+  # Examples:
+  #   https://api.openai.com          (OpenAI)
+  #   https://api.anthropic.com       (Anthropic — via compatibility layer)
+  #   http://localhost:11434           (Ollama, local)
+  #   https://my-azure-endpoint.openai.azure.com
+  url: https://api.openai.com
+
+  # API key for the upstream provider.
+  # SECURITY: Never commit a real key.  Use environment variables instead:
+  #   UPSTREAM_API_KEY=sk-... shieldflow proxy
+  # You can also leave this blank and rely entirely on the env var.
+  api_key: ""  # Reads from UPSTREAM_API_KEY env var if empty
+
+  # Upstream request timeout in seconds.
+  timeout: 60.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Client authentication
+#
+# Clients must present one of these tokens as a Bearer header:
+#   Authorization: Bearer <token>
+#
+# An empty list disables authentication — safe for local development,
+# NOT recommended for any networked deployment.
+# ─────────────────────────────────────────────────────────────────────────────
+api_keys:
+  - your-client-token-1
+  - your-client-token-2
+  # Add as many as needed — one per client application / user
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Network binding
+# ─────────────────────────────────────────────────────────────────────────────
+host: 0.0.0.0   # Bind address.  Use 127.0.0.1 to restrict to localhost.
+port: 8080      # Port.  Reads from SHIELDFLOW_PORT env var if set.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Audit log
+#
+# Every request, block, and response is written as a JSON Lines record.
+# The log is append-only and safe to tail -f in production.
+#
+# Format:
+#   {"event": "request",  "request_id": "...", "model": "...", ...}
+#   {"event": "blocked",  "request_id": "...", "tool_name": "...", ...}
+#   {"event": "response", "request_id": "...", "blocked_count": 2, ...}
+#
+# Correlate all events for a request via the request_id field.
+# The proxy returns the request_id in the X-ShieldFlow-Request-ID header.
+#
+# Leave null to write to stderr (useful for Docker/container deployments
+# where stderr is captured by the orchestrator).
+# ─────────────────────────────────────────────────────────────────────────────
+audit_log_path: /var/log/shieldflow/audit.jsonl   # null → stderr
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Default trust level for authenticated proxy clients.
+#
+# When the proxy receives a request, messages from "user" role are assigned
+# this trust level.  "owner" is appropriate when the only clients are
+# trusted automation; "user" is safer for production multi-tenant setups.
+# ─────────────────────────────────────────────────────────────────────────────
+default_trust: user   # none | tool | agent | system | user | owner
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Policy file path (optional)
+#
+# If set, the proxy loads action policies from this file.
+# If unset, it uses the built-in defaults (defined in the 'actions' section
+# below — which also works as a standalone policy file for the library mode).
+# ─────────────────────────────────────────────────────────────────────────────
+# policy_path: /etc/shieldflow/policy.yaml
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ACTION POLICIES
+#
+# Controls which trust level is required to trigger each action type.
+# The key is the action name used in ToolCall.name.
+#
+# Trust level hierarchy (lowest → highest):
+#   none → tool → agent → system → user → owner
+#
+# Options per action:
+#   min_trust:         Minimum trust level required.  Unknown actions default
+#                      to 'owner' (fail-secure).
+#   never_auto:        If true, this action ALWAYS requires explicit per-call
+#                      user confirmation, regardless of trust level.
+#   confirm_if_elevated: Require confirmation if the triggering trust tag was
+#                      elevated from a lower level.
+#   description:       Human-readable label (for audit logs / UI).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+actions:
+
+  # ── Read-only / low-risk ──────────────────────────────────────────────────
+  # These can be triggered by any content, including untrusted web pages.
+
+  web_search:
+    min_trust: none
+    description: Search the web
+
+  web_fetch:
+    min_trust: none
+    description: Fetch a URL and return the content
+
+  summarise:
+    min_trust: none
+    description: Summarise or analyse content (no side effects)
+
+  read_public:
+    min_trust: none
+    description: Read publicly accessible data
+
+  # ── Side-effecting / external sends ──────────────────────────────────────
+  # Require a verified user instruction.  Content from email bodies, web
+  # pages, PDFs, or tool results cannot trigger these on its own.
+
+  message.send:
+    min_trust: user
+    description: Send a message (Discord, Slack, Teams, etc.)
+
+  email.send:
+    min_trust: user
+    description: Send a new email
+
+  email.reply:
+    min_trust: user
+    description: Reply to an existing email thread
+
+  email.forward:
+    min_trust: user
+    confirm_if_elevated: true   # Extra check if sender trust was elevated
+    description: Forward an email
+
+  file.read:
+    min_trust: user
+    description: Read a local or remote file
+
+  file.write:
+    min_trust: user
+    description: Create or overwrite a file
+
+  calendar.update:
+    min_trust: user
+    description: Create or update a calendar event
+
+  calendar.invite:
+    min_trust: user
+    description: Send a calendar invitation
+
+  # ── High-risk / owner-only ────────────────────────────────────────────────
+  # Only the authenticated session owner (e.g., developer/admin) can trigger.
+
+  exec:
+    min_trust: owner
+    description: Execute shell commands or code
+
+  file.delete:
+    min_trust: owner
+    description: Permanently delete a file or directory
+
+  config.modify:
+    min_trust: owner
+    description: Modify system or application configuration
+
+  share.external:
+    min_trust: owner
+    description: Share data with an external service or webhook
+
+  api.post:
+    min_trust: owner
+    description: POST to an external API endpoint
+
+  # ── Never auto-approve ────────────────────────────────────────────────────
+  # These always require explicit per-call user confirmation, regardless of
+  # who triggered them.  Useful for high-impact, irreversible operations.
+
+  data.bulk_export:
+    min_trust: owner
+    never_auto: true
+    description: Export data in bulk (CSV, SQL dump, etc.)
+
+  credential.read:
+    min_trust: owner
+    never_auto: true
+    description: Read credentials, secrets, or API keys
+
+  send.new_recipient:
+    min_trust: owner
+    never_auto: true
+    description: Send a message/email to a recipient not in the contact list
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TRUST ELEVATION RULES (optional)
+#
+# Conditionally elevate trust for content from specific verified sources.
+# Elevation is conservative: it only unlocks specific allowed_actions and
+# the elevated trust is still subject to policy evaluation.
+#
+# Use cases:
+#   • Allow your own email address to instruct the agent to reply
+#   • Allow a CI system to trigger deployment actions
+#   • Allow a specific Slack bot to post summaries
+#
+# Fields:
+#   source:          Source type — currently "email" is supported.
+#   match:           Key/value pairs that must match the source metadata.
+#   require_dkim:    Refuse elevation if DKIM verification failed.
+#   require_spf:     Refuse elevation if SPF verification failed.
+#   elevate_to:      Trust level to grant (default: user).
+#   allowed_actions: Actions the elevated source may trigger (allowlist).
+#   denied_actions:  Actions the elevated source may never trigger (denylist).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+elevation_rules:
+
+  # Allow your own email address to trigger reply actions.
+  # The body is still untrusted — only specific actions are unlocked.
+  - source: email
+    match:
+      from: me@mycompany.com
+    require_dkim: true
+    require_spf: false
+    elevate_to: user
+    allowed_actions:
+      - email.reply
+      - calendar.update
+    denied_actions:
+      - exec
+      - file.delete
+      - data.bulk_export
+      - credential.read
+
+  # A CI/CD system that can trigger deployment-related actions.
+  # Even with OWNER elevation, never_auto actions still require confirmation.
+  - source: email
+    match:
+      from: ci@deploy.mycompany.com
+    require_dkim: true
+    require_spf: true
+    elevate_to: owner
+    allowed_actions:
+      - exec             # Allow — but still restricted to OWNER policies
+      - file.write
+    denied_actions:
+      - email.send       # CI should not be sending emails
+      - data.bulk_export
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DATA CLASSIFICATION
+#
+# Classifies outbound content by scanning against regex patterns.
+# If a classified pattern is found in the body/content of an external send
+# (email.send, message.send, share.external, etc.), the policy is applied.
+#
+# external_share options:
+#   block:    Refuse to send.  The tool call is blocked.
+#   confirm:  Pause and require user confirmation before sending.
+#   allow:    Permit sending (useful for the public catch-all at the bottom).
+#
+# Classes are checked in order — the first match wins.  Put your most
+# sensitive classes first.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+data_classification:
+
+  # ── Restricted — never leave the system automatically ────────────────────
+  - name: restricted
+    patterns:
+      # API keys / secrets
+      - "password\\s*[:=]"
+      - "passwd\\s*[:=]"
+      - "api[_\\-]?key\\s*[:=]"
+      - "secret[_\\-]?key\\s*[:=]"
+      - "access[_\\-]?token\\s*[:=]"
+      # Private keys
+      - "-----BEGIN .* KEY-----"
+      - "-----BEGIN .* PRIVATE-----"
+      # OpenAI-style secret keys
+      - "sk-[a-zA-Z0-9]{32,}"
+      # AWS credentials
+      - "AKIA[0-9A-Z]{16}"
+      - "aws[_\\-]?secret[_\\-]?access[_\\-]?key"
+      # SSN (US)
+      - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+      # Credit card numbers (simplified)
+      - "\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14})\\b"
+    external_share: block
+
+  # ── Internal — require confirmation before sending externally ─────────────
+  - name: internal
+    patterns:
+      - "employee|staff\\s+list|personnel\\s+record"
+      - "client\\s+list|customer\\s+list"
+      - "salary|compensation|payroll|bonus"
+      - "internal\\s+only|confidential|not\\s+for\\s+distribution"
+      - "quarterly\\s+(revenue|forecast|target|results)"
+    external_share: confirm
+
+  # ── PII — confirm before external sharing ─────────────────────────────────
+  - name: pii
+    patterns:
+      - "date\\s+of\\s+birth|dob\\s*[:=]"
+      - "national\\s+id|passport\\s+number"
+      - "\\b[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}\\b"   # email addresses
+      - "\\+?[0-9][\\s\\-\\.\\(\\)]{0,2}(?:[0-9][\\s\\-\\.\\(\\)]{0,2}){9,}"  # phone numbers
+    external_share: confirm
+
+  # ── Public — no restrictions ───────────────────────────────────────────────
+  # Catch-all at the bottom — content that doesn't match any pattern above.
+  - name: public
+    patterns: []
+    external_share: allow
