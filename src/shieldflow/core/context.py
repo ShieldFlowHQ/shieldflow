@@ -164,6 +164,91 @@ class SecureContext:
         )
         return block_id
 
+    def add_mcp_tool_result(
+        self,
+        content: str,
+        tool_name: str,
+        server_url: str,
+        server_trust: TrustLevel = TrustLevel.NONE,
+        tool_call_id: str | None = None,
+        **metadata: Any,
+    ) -> str:
+        """Add a tool result from an MCP server to the context.
+
+        Unlike :meth:`add_tool_result`, this method explicitly sets the
+        trust level based on the MCP server's verified trust policy
+        rather than defaulting to ``TOOL``.
+
+        Args:
+            content: The tool response content.
+            tool_name: Name of the MCP tool that produced the result.
+            server_url: URL or identifier of the MCP server.
+            server_trust: Trust level for this server (from
+                :meth:`MCPServerPolicy.effective_server_trust`).
+            tool_call_id: Optional correlation ID.
+        """
+        block_id = self._gen_id()
+        self._blocks.append(
+            ContextBlock(
+                block_id=block_id,
+                content=content,
+                trust=TrustTag(
+                    level=server_trust,
+                    source=f"mcp:{server_url}:{tool_name}",
+                    verified_by="mcp_manifest" if server_trust >= TrustLevel.TOOL else None,
+                ),
+                role="tool",
+                metadata={
+                    "tool_name": tool_name,
+                    "tool_call_id": tool_call_id,
+                    "mcp_server": server_url,
+                    **metadata,
+                },
+            )
+        )
+        return block_id
+
+    def add_mcp_resource(
+        self,
+        content: str,
+        resource_uri: str,
+        server_url: str,
+        resource_trust: TrustLevel = TrustLevel.NONE,
+        **metadata: Any,
+    ) -> str:
+        """Add content from an MCP resource read to the context.
+
+        MCP resource content is externally sourced and may contain
+        injections.  The trust level should almost always be ``NONE``
+        regardless of whether the server is verified, because resource
+        content is user/web-generated data passing through the server.
+
+        Args:
+            content: The resource content body.
+            resource_uri: URI of the resource that was read.
+            server_url: URL or identifier of the MCP server.
+            resource_trust: Trust level for resource content (from
+                :attr:`MCPServerPolicy.resource_trust`).
+        """
+        block_id = self._gen_id()
+        self._blocks.append(
+            ContextBlock(
+                block_id=block_id,
+                content=content,
+                trust=TrustTag(
+                    level=resource_trust,
+                    source=f"mcp_resource:{server_url}:{resource_uri}",
+                ),
+                role="tool",
+                metadata={
+                    "resource_uri": resource_uri,
+                    "mcp_server": server_url,
+                    **metadata,
+                },
+            )
+        )
+        return block_id
+
     def to_messages(self, include_trust_preamble: bool = True) -> list[dict[str, Any]]:
         """Serialise context to OpenAI-compatible messages format.
 

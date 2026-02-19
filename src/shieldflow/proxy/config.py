@@ -35,6 +35,76 @@ from shieldflow.core.trust import TrustLevel
 
 
 @dataclass
+class MCPServerPolicy:
+    """Trust policy for a specific MCP (Model Context Protocol) server.
+
+    Controls how content from MCP server responses and resource reads
+    is trusted within the ShieldFlow security context.
+
+    Attributes:
+        server_trust: Trust level assigned to tool-call responses from
+            this server.  Verified servers may be granted ``TOOL`` trust;
+            unverified servers should remain at ``NONE``.
+        resource_trust: Trust level for resource-read content (e.g.
+            ``resources/read``).  Defaults to ``NONE`` because resource
+            content is externally sourced and may contain injections.
+        verified: Whether this server has a registered, signed manifest.
+            Unverified servers are always capped at ``NONE`` trust
+            regardless of ``server_trust``.
+        allowed_tools: Optional allowlist of tool names this server may
+            expose.  ``None`` means all tools are permitted.  If set,
+            tool calls to names not in the list are blocked.
+        label: Human-readable name for audit/dashboard display.
+
+    Example YAML::
+
+        mcp_servers:
+          "https://mcp.internal.corp/v1":
+            server_trust: tool
+            resource_trust: none
+            verified: true
+            label: "Internal MCP"
+          "https://community-mcp.example.com":
+            server_trust: none
+            resource_trust: none
+            verified: false
+            allowed_tools:
+              - "search"
+              - "calculator"
+            label: "Community MCP"
+    """
+
+    server_trust: TrustLevel = TrustLevel.NONE
+    resource_trust: TrustLevel = TrustLevel.NONE
+    verified: bool = False
+    allowed_tools: list[str] | None = None
+    label: str | None = None
+
+    def effective_server_trust(self) -> TrustLevel:
+        """Return the effective trust, capped at NONE for unverified servers."""
+        if not self.verified:
+            return TrustLevel.NONE
+        return self.server_trust
+
+    def is_tool_allowed(self, tool_name: str) -> bool:
+        """Return True if *tool_name* is permitted by the allowlist.
+
+        Always returns True when ``allowed_tools`` is None (no restriction).
+        """
+        if self.allowed_tools is None:
+            return True
+        return tool_name in self.allowed_tools
+
+
+# Default policy for any MCP server not explicitly configured.
+DEFAULT_MCP_POLICY = MCPServerPolicy(
+    server_trust=TrustLevel.NONE,
+    resource_trust=TrustLevel.NONE,
+    verified=False,
+)
+
+
+@dataclass
 class TenantConfig:
     """Per-tenant policy and rate-limit overrides.
 
@@ -102,6 +172,14 @@ class ProxyConfig:
     host: str = "0.0.0.0"
     port: int = 8080
 
+    # ── MCP server trust policies ────────────────────────────────────── #
+    mcp_servers: dict[str, MCPServerPolicy] = field(default_factory=dict)
+    """Per-MCP-server trust policies, keyed by server URL or name.
+
+    Servers not listed here receive :data:`DEFAULT_MCP_POLICY` (all NONE
+    trust, unverified).  See :class:`MCPServerPolicy` for field details.
+    """
+
     # ── Multi-tenant overrides ────────────────────────────────────────── #
     tenants: dict[str, TenantConfig] = field(default_factory=dict)
     """Per-tenant configuration overrides, keyed by Bearer token.
@@ -153,6 +231,19 @@ class ProxyConfig:
         raw_trust = data.get("default_trust", "user")
         default_trust = TrustLevel.from_string(raw_trust)
 
+        # Parse MCP server policies.
+        mcp_servers: dict[str, MCPServerPolicy] = {}
+        for srv_key, srv_data in (data.get("mcp_servers") or {}).items():
+            raw_srv_trust = srv_data.get("server_trust", "none")
+            raw_res_trust = srv_data.get("resource_trust", "none")
+            mcp_servers[str(srv_key)] = MCPServerPolicy(
+                server_trust=TrustLevel.from_string(raw_srv_trust),
+                resource_trust=TrustLevel.from_string(raw_res_trust),
+                verified=bool(srv_data.get("verified", False)),
+                allowed_tools=srv_data.get("allowed_tools"),
+                label=srv_data.get("label"),
+            )
+
         # Parse per-tenant overrides.
         tenants: dict[str, TenantConfig] = {}
         for token_key, t_data in (data.get("tenants") or {}).items():
@@ -178,6 +269,7 @@ class ProxyConfig:
             default_trust=default_trust,
             host=data.get("host", "0.0.0.0"),
             port=int(data.get("port", 8080)),
+            mcp_servers=mcp_servers,
             tenants=tenants,
             max_request_body_bytes=int(data.get("max_request_body_bytes", 1_048_576)),
             max_messages_per_request=int(data.get("max_messages_per_request", 500)),

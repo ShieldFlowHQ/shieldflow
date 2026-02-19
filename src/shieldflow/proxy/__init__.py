@@ -16,7 +16,13 @@ Usage::
 
 from shieldflow.proxy.anomaly import AnomalyMonitor
 from shieldflow.proxy.audit import AuditLogger
-from shieldflow.proxy.config import ProxyConfig, TenantConfig, UpstreamConfig
+from shieldflow.proxy.config import (
+    DEFAULT_MCP_POLICY,
+    MCPServerPolicy,
+    ProxyConfig,
+    TenantConfig,
+    UpstreamConfig,
+)
 from shieldflow.proxy.dashboard import DecisionLog
 from shieldflow.proxy.metrics import MetricsCollector
 from shieldflow.proxy.ratelimit import RateLimiter
@@ -25,7 +31,9 @@ from shieldflow.proxy.server import create_app
 __all__ = [
     "AnomalyMonitor",
     "AuditLogger",
+    "DEFAULT_MCP_POLICY",
     "DecisionLog",
+    "MCPServerPolicy",
     "MetricsCollector",
     "ProxyConfig",
     "RateLimiter",
