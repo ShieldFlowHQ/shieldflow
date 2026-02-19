@@ -79,8 +79,8 @@ jobs:
       - name: Generate SBOM (CycloneDX)
         run: |
           cyclonedx-py environment \
-            --output sbom.json \
-            --output-format json
+            --output-file sbom.json \
+            --of json
           echo "::notice::SBOM generated with $(jq '.components | length' sbom.json) components"
 
       - name: Upload SBOM artifact
