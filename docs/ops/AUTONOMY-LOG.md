@@ -479,3 +479,42 @@ TenantConfig defaults; `from_yaml` parsing (full/partial/empty); RPM override en
 - Next priority: Phase C item 3 (MCP trust policy) or item 4 (secure deployment baseline / SBOM)
 
 ---
+
+## Cycle 12 — 2026-02-20 09:54 AEDT (consolidated from 08:00–09:54 queue)
+
+### Focus
+Phase C, item 4: secure deployment baseline — Dependabot config, SBOM generation in CI, and comprehensive deployment security guide.
+
+### Status at Cycle Start
+- **CI:** ✅ GREEN — repo rebased to fresh anonymous baseline (`9f5cc6a`), all 365 tests pass
+- **Note:** Multiple cron triggers queued (08:00, 08:30×2, 09:00, 09:30, 09:54); consolidated into single cycle
+- **Open issues:** #10 (multi-tenant baseline), #11 (community)
+- **Roadmap:** Phase C items 1+2 ✅, items 3–5 remaining
+
+### Actions Taken
+
+#### 1. `.github/dependabot.yml` — automated dependency updates
+- **pip ecosystem:** weekly Monday 06:00 AEST PRs; labels `dependencies`, `security`
+- **GitHub Actions:** weekly Monday 06:00 AEST PRs; labels `dependencies`, `ci`
+- Open-PR limits: 5 (pip), 3 (actions)
+
+#### 2. `.github/workflows/ci.yml` — SBOM generation job
+- New `sbom` job (main branch only): `cyclonedx-bom` → CycloneDX JSON
+- Uploaded as artifact with 90-day retention
+- Operators feed into Grype/Trivy/Snyk vulnerability scanners
+
+#### 3. `docs/deployment/SECURITY-BASELINE.md` — deployment security guide
+10-section guide covering:
+- Prerequisites & TLS | Config checklist (core/guardrails/multi-tenant) | Secret management (Vault/AWS/GCP, rotation) | Health checks & monitoring (endpoint table, alert thresholds) | Dependency & supply chain (Dependabot, SBOM, pinning strategy) | Audit log format & shipping | Network architecture | Incident response runbooks (3 scenarios) | Release & rollback process | Production hardening checklist
+
+### Commit
+`43f89d6` — `chore(ops): secure deployment baseline — Dependabot, SBOM CI, deployment guide`
+
+### Outcome
+- **365 tests pass**, 0 failures
+- Phase C item 4 (secure deployment baseline) ✅
+- Phase C progress: items 1 ✅ 2 ✅ 4 ✅ 5 (health endpoints) ✅
+- Remaining: item 3 (MCP trust policy formalization), item 5 (SLO definitions + response playbooks — partially done via SECURITY-BASELINE.md runbooks)
+- Next priority: Phase C item 3 — MCP trust model, or close Issue #10
+
+---
