@@ -58,3 +58,34 @@ jobs:
 
       - name: Run red team tests
         run: pytest tests/red-team/ -v --tb=long
+
+  sbom:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install cyclonedx-bom
+
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          cyclonedx-py environment \
+            --output sbom.json \
+            --output-format json
+          echo "::notice::SBOM generated with $(jq '.components | length' sbom.json) components"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.json
+          retention-days: 90
