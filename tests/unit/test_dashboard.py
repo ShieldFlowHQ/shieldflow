@@ -284,6 +284,7 @@ class TestDashboardEndpoint:
             resp = await ac.get("/dashboard")
         assert resp.status_code == 200
         assert "text/html" in resp.headers["content-type"]
+        assert resp.headers["cache-control"] == "no-store"
 
     @pytest.mark.asyncio
     async def test_dashboard_contains_shieldflow_header(
@@ -404,6 +405,7 @@ class TestDashboardApiEndpoints:
         ) as ac:
             resp = await ac.get("/dashboard/api/decisions")
         assert resp.status_code == 200
+        assert resp.headers["cache-control"] == "no-store"
         data = resp.json()
         assert isinstance(data, list)
         assert len(data) == 2

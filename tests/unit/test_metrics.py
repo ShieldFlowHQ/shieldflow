@@ -353,6 +353,7 @@ class TestMetricsEndpoints:
         ) as ac:
             resp = await ac.get("/metrics/json")
         assert resp.status_code == 200
+        assert resp.headers["cache-control"] == "no-store"
         data = resp.json()
         assert data["requests_total"] == 1
         assert data["decisions"]["block_total"] == 1

@@ -7,7 +7,9 @@ Thanks for your interest in contributing! ShieldFlow is an open-source project a
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/YOUR-USERNAME/shieldflow.git`
 3. Create a virtual environment: `python -m venv .venv && source .venv/bin/activate`
-4. Install dev dependencies: `pip install -e ".[dev]"`
+4. Install dev dependencies (recommended): `uv sync --extra dev`
+   - If your venv does not include `pip`, bootstrap it first:
+     `python -m ensurepip --upgrade && python -m pip install -e ".[dev]"`
 5. Run tests: `pytest`
 6. Create a branch: `git checkout -b my-feature`
 

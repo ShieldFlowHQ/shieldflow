@@ -429,6 +429,8 @@ def add_dashboard_routes(app: FastAPI, decision_log: DecisionLog) -> None:
         decision_log: The shared decision log populated by the server.
     """
 
+    no_store_headers = {"Cache-Control": "no-store"}
+
     @app.get("/dashboard", response_class=HTMLResponse)
     async def dashboard(
         decision: str | None = Query(default=None),
@@ -456,7 +458,10 @@ def add_dashboard_routes(app: FastAPI, decision_log: DecisionLog) -> None:
             filters["tool"] = tool
         if trust:
             filters["trust"] = trust
-        return _render_dashboard(decisions, queue, stats, filters)
+        return HTMLResponse(
+            content=_render_dashboard(decisions, queue, stats, filters),
+            headers=no_store_headers,
+        )
 
     @app.get("/dashboard/api/decisions")
     async def api_decisions(
@@ -472,11 +477,15 @@ def add_dashboard_routes(app: FastAPI, decision_log: DecisionLog) -> None:
         entries = decision_log.recent(
             n=n, decision=decision, tool=tool, trust=trust
         )
-        return JSONResponse([e.to_dict() for e in entries])
+        return JSONResponse(
+            [e.to_dict() for e in entries],
+            headers=no_store_headers,
+        )
 
     @app.get("/dashboard/api/queue")
     async def api_queue() -> JSONResponse:
         """JSON list of CONFIRM-pending decisions (newest first)."""
         return JSONResponse(
-            [e.to_dict() for e in decision_log.confirmation_queue()]
+            [e.to_dict() for e in decision_log.confirmation_queue()],
+            headers=no_store_headers,
         )

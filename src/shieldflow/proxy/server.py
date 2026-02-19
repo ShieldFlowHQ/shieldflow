@@ -1028,7 +1028,7 @@ def create_app(
         )
 
     @app.get("/metrics/json")
-    async def metrics_json() -> dict[str, Any]:
+    async def metrics_json() -> JSONResponse:
         """JSON metrics snapshot for programmatic consumers.
 
         Returns aggregate counters, per-tool decision counts,
@@ -1040,6 +1040,6 @@ def create_app(
             "total_spikes": _anomaly.total_spikes(),
             "sessions_at_risk": _anomaly.sessions_at_risk(),
         }
-        return snapshot
+        return JSONResponse(snapshot, headers={"Cache-Control": "no-store"})
 
     return app
