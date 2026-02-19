@@ -1,73 +1,51 @@
-# React + TypeScript + Vite
+# ShieldFlow Frontend Demo
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Production-minded React + TypeScript + Vite demo slice for ShieldFlow.
 
-Currently, two official plugins are available:
+## Included in this demo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Landing page (`/`) with product value proposition and CTA to dashboard
+- Dashboard shell (`/dashboard`) with:
+  - Recent decisions summary
+  - Risk/anomaly summary
+  - Blocked actions table
+- Live API wiring to:
+  - `GET /dashboard/api/decisions`
+  - `GET /dashboard/api/queue`
+  - `GET /metrics/json`
+- Graceful mock fallback when backend endpoints are unavailable
+  - Includes explicit TODO marker in UI
 
-## React Compiler
+## Local run
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open: <http://localhost:5173>
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Backend integration in local dev
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Vite dev server proxies these paths to `http://localhost:8000`:
+
+- `/dashboard`
+- `/metrics`
+
+So frontend fetch calls can stay same-origin (`/dashboard/api/*`, `/metrics/json`).
+
+## Quality checks
+
+```bash
+npm run lint
+npm run test
+npm run build
 ```
+
+## Screenshot-ready routes
+
+- Landing: <http://localhost:5173/>
+- Dashboard: <http://localhost:5173/dashboard>
+- Decisions API (JSON): <http://localhost:5173/dashboard/api/decisions?n=20>
+- Metrics JSON: <http://localhost:5173/metrics/json>

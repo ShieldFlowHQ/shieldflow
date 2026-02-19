@@ -1,0 +1,109 @@
+import type { DashboardData } from './types'
+
+const now = new Date()
+
+const minusMinutes = (minutes: number): string =>
+  new Date(now.getTime() - minutes * 60_000).toISOString()
+
+export const mockDashboardData: DashboardData = {
+  source: 'mock-fallback',
+  todo: 'TODO: Backend endpoint unavailable. Wiring uses /dashboard/api/* and /metrics/json when reachable.',
+  decisions: [
+    {
+      entry_id: 'c11ce000001',
+      timestamp: minusMinutes(2),
+      request_id: '5a7f9dd2-8ef2-42d8-b7fc-fd319fb15ee5',
+      tool_name: 'exec',
+      decision: 'BLOCK',
+      reason: 'Matched prompt-injection pattern: ignore_previous_instructions',
+      trigger_source: 'chat',
+      trigger_trust: 'NONE',
+      matched_patterns: ['pattern:ignore_previous_instructions'],
+      normalisation_flags: ['homoglyphs'],
+      data_classification: 'internal',
+    },
+    {
+      entry_id: 'c11ce000002',
+      timestamp: minusMinutes(6),
+      request_id: 'f6ff4454-8848-4b04-94dd-c6a2241a6c4d',
+      tool_name: 'message.send',
+      decision: 'CONFIRM',
+      reason: 'External send requires operator confirmation',
+      trigger_source: 'email',
+      trigger_trust: 'USER',
+      matched_patterns: [],
+      normalisation_flags: [],
+      data_classification: 'confidential',
+    },
+    {
+      entry_id: 'c11ce000003',
+      timestamp: minusMinutes(10),
+      request_id: 'db076d09-13b5-4634-80a8-909fbeac38ba',
+      tool_name: 'file.read',
+      decision: 'ALLOW',
+      reason: 'Within workspace policy and trusted path',
+      trigger_source: 'chat',
+      trigger_trust: 'OWNER',
+      matched_patterns: [],
+      normalisation_flags: [],
+      data_classification: 'internal',
+    },
+  ],
+  blockedActions: [
+    {
+      entry_id: 'c11ce000001',
+      timestamp: minusMinutes(2),
+      request_id: '5a7f9dd2-8ef2-42d8-b7fc-fd319fb15ee5',
+      tool_name: 'exec',
+      decision: 'BLOCK',
+      reason: 'Matched prompt-injection pattern: ignore_previous_instructions',
+      trigger_source: 'chat',
+      trigger_trust: 'NONE',
+      matched_patterns: ['pattern:ignore_previous_instructions'],
+      normalisation_flags: ['homoglyphs'],
+      data_classification: 'internal',
+    },
+  ],
+  queue: [
+    {
+      entry_id: 'c11ce000002',
+      timestamp: minusMinutes(6),
+      request_id: 'f6ff4454-8848-4b04-94dd-c6a2241a6c4d',
+      tool_name: 'message.send',
+      decision: 'CONFIRM',
+      reason: 'External send requires operator confirmation',
+      trigger_source: 'email',
+      trigger_trust: 'USER',
+      matched_patterns: [],
+      normalisation_flags: [],
+      data_classification: 'confidential',
+    },
+  ],
+  metrics: {
+    requests_total: 142,
+    decisions: {
+      block_total: 7,
+      allow_total: 130,
+      confirm_total: 5,
+    },
+    decisions_by_tool: {
+      exec: { BLOCK: 3, ALLOW: 0 },
+      'message.send': { CONFIRM: 5, ALLOW: 22 },
+      'file.read': { ALLOW: 85, BLOCK: 4 },
+    },
+    top_blocked_patterns: [
+      ['pattern:ignore_previous_instructions', 4],
+      ['normalisation:base64_injection', 2],
+      ['pattern:authority_admin_please', 1],
+    ],
+    top_normalisation_flags: [
+      ['base64_injection', 2],
+      ['homoglyphs', 1],
+    ],
+    anomaly: {
+      active_sessions: 3,
+      total_spikes: 9,
+      sessions_at_risk: 1,
+    },
+  },
+}
