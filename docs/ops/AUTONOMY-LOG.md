@@ -569,3 +569,32 @@ MCPServerPolicy defaults/capping/allowlist, DEFAULT_MCP_POLICY, YAML parsing, co
 - Next: close Issue #10, update ROADMAP.md to reflect Phase C completion, or begin Phase D planning
 
 ---
+
+## Cycle 14 — 2026-02-20 10:30 AEDT
+
+### Focus
+CI recovery: fix SBOM generation CLI flags + merge Dependabot PRs.
+
+### Status at Cycle Start
+- **CI:** ❌ FAILING — `sbom` job: `cyclonedx-py: error: unrecognized arguments: --output`
+- **Tests:** 386 passing locally
+- **Dependabot:** 3 open PRs (actions/stale 9→10, actions/github-script 7→8, codecov/codecov-action 4→5)
+
+### Actions Taken
+
+#### 1. CI fix (`adf3e0e`)
+`cyclonedx-py` v7+ uses `--output-file` (not `--output`) and `--of` (not `--output-format`).
+Fixed `.github/workflows/ci.yml` SBOM generation step.
+
+#### 2. Merged 3 Dependabot PRs
+- PR #1: `actions/stale` 9 → 10
+- PR #2: `actions/github-script` 7 → 8
+- PR #3: `codecov/codecov-action` 4 → 5
+
+### Outcome
+- CI should be green (SBOM flags corrected + GitHub Actions updated)
+- **386 tests pass**, 0 failures
+- All roadmap phases A–C complete
+- Next: ROADMAP update to reflect Phase C completion and plan Phase D, or close remaining housekeeping
+
+---
