@@ -518,3 +518,54 @@ Phase C, item 4: secure deployment baseline — Dependabot config, SBOM generati
 - Next priority: Phase C item 3 — MCP trust model, or close Issue #10
 
 ---
+
+## Cycle 13 — 2026-02-20 10:00 AEDT
+
+### Focus
+Phase C, item 3: MCP trust policy formalization — per-server trust policies, tool allowlisting, context methods, and formal specification document.
+
+### Status at Cycle Start
+- **CI:** ✅ GREEN — Dependabot already active (3 PRs opened for GitHub Actions updates)
+- **Tests:** 365 passing
+- **Phase C progress:** items 1 ✅ 2 ✅ 4 ✅ 5 (health) ✅; item 3 remaining
+
+### Actions Taken
+
+#### 1. `MCPServerPolicy` dataclass (`src/shieldflow/proxy/config.py`)
+Per-MCP-server trust configuration with verification-capped enforcement:
+
+| Field | Default | Purpose |
+|---|---|---|
+| `server_trust` | NONE | Trust for `tools/call` responses |
+| `resource_trust` | NONE | Trust for `resources/read` content |
+| `verified` | false | Whether server has signed manifest |
+| `allowed_tools` | null (all) | Tool name allowlist |
+| `label` | null | Human-readable name |
+
+**Key invariant:** `effective_server_trust()` caps unverified servers at NONE regardless of configured trust.
+
+#### 2. `SecureContext` MCP methods (`src/shieldflow/core/context.py`)
+- `add_mcp_tool_result()` — tags with server's effective trust + provenance (`mcp:<server>:<tool>`)
+- `add_mcp_resource()` — tags with resource trust (default NONE) + provenance (`mcp_resource:<server>:<uri>`)
+
+#### 3. Config integration
+- `ProxyConfig.mcp_servers: dict[str, MCPServerPolicy]` — YAML section parsed in `from_yaml()`
+- `DEFAULT_MCP_POLICY` singleton — all NONE, unverified (secure by default)
+- Exported from `proxy/__init__.py`
+
+#### 4. Formal specification (`docs/architecture/MCP-TRUST-POLICY.md`)
+Complete trust policy document: trust model, assignment rules, verification cap, config format, enforcement, security considerations, migration guide.
+
+#### 5. Tests (`tests/unit/test_mcp_trust.py`) — 21 new (386 total)
+MCPServerPolicy defaults/capping/allowlist, DEFAULT_MCP_POLICY, YAML parsing, context methods trust tagging + provenance, 3 integration tests (NONE blocks exec, TOOL allows message.send, resource injection blocked).
+
+### Commit
+`e776400` — `feat(security): MCP trust policy formalization`
+
+### Outcome
+- **386 tests pass**, 0 failures
+- **Phase C fully complete:** items 1–5 all done ✅
+- Issue #10 substantially addressed (multi-tenant + MCP + deployment baseline)
+- Next: close Issue #10, update ROADMAP.md to reflect Phase C completion, or begin Phase D planning
+
+---
