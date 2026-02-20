@@ -145,7 +145,7 @@ class AdaptiveEscalation:
         Tools with ``min_trust: none`` (e.g. web_search) are never
         escalated because they are read-only and low-risk.
         """
-        action_policy = self._policy.get_action(tool_name)
+        action_policy = self._policy._get_policy(tool_name)
         if action_policy is None:
             # Unknown tools are already blocked by the validator;
             # if somehow allowed, escalate conservatively.
