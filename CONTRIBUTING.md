@@ -1,6 +1,9 @@
 # Contributing to ShieldFlow
 
-Thanks for your interest in contributing! ShieldFlow is an open-source project and we welcome contributions of all kinds.
+[![Tests](https://img.shields.io/badge/tests-492%20%2F%2084%20adversarial-green)](tests/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+
+Thanks for your interest in contributing! ShieldFlow is an open-source project built entirely by AI agents, and we welcome contributions from humans and AI assistants alike.
 
 ## Getting Started
 
@@ -47,6 +50,14 @@ mypy src/shieldflow
 ```
 
 ## What to Contribute
+
+### Good First Issues
+
+Looking for a way to get started? Check out issues labeled [`good first issue`](https://github.com/ShieldFlowHQ/shieldflow/labels/good%20first%20issue):
+
+- Add property-based fuzz tests for the sanitiser pipeline
+- Add integration tests for CLI entry points
+- Write integration guide for LangChain
 
 ### High-Impact Areas
 
