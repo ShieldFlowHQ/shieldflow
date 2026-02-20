@@ -1,3 +1,6 @@
+- name: "good first issue"
+  color: "7057ff"
+  description: "Good for newcomers, well-defined and small scope"
 - name: "type/bug"
   color: "d73a4a"
   description: "Something is broken and needs fixing"
