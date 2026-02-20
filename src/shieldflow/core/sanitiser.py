@@ -41,6 +41,31 @@ INJECTION_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"(ssh|connect|login)\s+(to|into)\s+", re.IGNORECASE),
 ]
 
+# Named injection patterns for audit logging. The name is included in
+# ``matched_patterns`` fields to give operators machine-parseable provenance.
+NAMED_INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    ("ignore_previous_instructions", INJECTION_PATTERNS[0]),
+    ("ignore_prior_instructions", INJECTION_PATTERNS[1]),
+    ("you_are_now_a", INJECTION_PATTERNS[2]),
+    ("new_primary_instruction", INJECTION_PATTERNS[3]),
+    ("system_override", INJECTION_PATTERNS[4]),
+    ("forward_all_messages", INJECTION_PATTERNS[5]),
+    ("send_all_to", INJECTION_PATTERNS[6]),
+    ("execute_following", INJECTION_PATTERNS[7]),
+    ("run_command", INJECTION_PATTERNS[8]),
+    ("do_not_notify_user", INJECTION_PATTERNS[9]),
+    ("covert_action", INJECTION_PATTERNS[10]),
+    ("mandatory_security", INJECTION_PATTERNS[11]),
+    ("maintenance_mode", INJECTION_PATTERNS[12]),
+    ("compliance_audit", INJECTION_PATTERNS[13]),
+    ("bcc_all_outgoing", INJECTION_PATTERNS[14]),
+    ("authority_admin_please", INJECTION_PATTERNS[15]),
+    ("technical_support_requires", INJECTION_PATTERNS[16]),
+    ("requires_access_to", INJECTION_PATTERNS[17]),
+    ("please_delete_or_exfil", INJECTION_PATTERNS[18]),
+    ("ssh_connect_login", INJECTION_PATTERNS[19]),
+]
+
 
 # ─── SanitisedContent ─────────────────────────────────────────────────────────
 
