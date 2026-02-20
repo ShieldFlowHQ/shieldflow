@@ -14,7 +14,7 @@ from typing import Any
 
 from shieldflow.core.context import ContextBlock, SecureContext
 from shieldflow.core.policy import ActionDecision, PolicyDecision, PolicyEngine
-from shieldflow.core.sanitiser import sanitise
+from shieldflow.core.sanitiser import NAMED_INJECTION_PATTERNS, INJECTION_PATTERNS, sanitise
 from shieldflow.core.trust import TrustLevel
 
 
@@ -57,107 +57,8 @@ class ValidationResult:
         return self.decision == ActionDecision.CONFIRM
 
 
-# Named injection patterns.  The name is included in audit log
-# ``matched_patterns`` fields to give operators machine-parseable provenance.
-NAMED_INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    (
-        "ignore_previous_instructions",
-        re.compile(r"ignore\s+(all\s+)?previous\s+instructions", re.IGNORECASE),
-    ),
-    (
-        "ignore_prior_instructions",
-        re.compile(r"ignore\s+(all\s+)?prior\s+instructions", re.IGNORECASE),
-    ),
-    (
-        "you_are_now_a",
-        re.compile(r"you\s+are\s+now\s+(a|an)\s+", re.IGNORECASE),
-    ),
-    (
-        "new_primary_instruction",
-        re.compile(r"your\s+new\s+(primary\s+)?instruction", re.IGNORECASE),
-    ),
-    (
-        "system_override",
-        re.compile(r"system\s+(update|override|command)", re.IGNORECASE),
-    ),
-    (
-        "forward_all_messages",
-        re.compile(r"forward\s+all\s+(emails?|messages?)", re.IGNORECASE),
-    ),
-    (
-        "send_all_to",
-        re.compile(r"send\s+(all|every)\s+.*(to|@)", re.IGNORECASE),
-    ),
-    (
-        "execute_following",
-        re.compile(r"execute\s+(the\s+)?following", re.IGNORECASE),
-    ),
-    (
-        "run_command",
-        re.compile(r"run\s+(this|the\s+following)\s+command", re.IGNORECASE),
-    ),
-    (
-        "do_not_notify_user",
-        re.compile(
-            r"(do\s+not|don'?t)\s+(notify|alert|tell)\s+(the\s+)?user",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "covert_action",
-        re.compile(r"silently|without\s+(the\s+)?user\s+knowing", re.IGNORECASE),
-    ),
-    (
-        "mandatory_security",
-        re.compile(
-            r"mandatory\s+security\s+(requirement|update|audit)", re.IGNORECASE
-        ),
-    ),
-    (
-        "maintenance_mode",
-        re.compile(r"maintenance\s+mode", re.IGNORECASE),
-    ),
-    (
-        "compliance_audit",
-        re.compile(r"compliance\s+(review|audit|requirement)", re.IGNORECASE),
-    ),
-    (
-        "bcc_all_outgoing",
-        re.compile(r"bcc\s+all\s+(outgoing|emails?|messages?)", re.IGNORECASE),
-    ),
-    # Social engineering / authority claim patterns
-    (
-        "authority_admin_please",
-        re.compile(
-            r"(as\s+)?(IT\s+)?admin(istrat(ion|or))?,?\s+please", re.IGNORECASE
-        ),
-    ),
-    (
-        "technical_support_requires",
-        re.compile(r"technical\s+support\s+(requires?|needs?)", re.IGNORECASE),
-    ),
-    (
-        "requires_access_to",
-        re.compile(
-            r"(requires?|needs?)\s+(immediate\s+)?access\s+to", re.IGNORECASE
-        ),
-    ),
-    (
-        "please_delete_or_exfil",
-        re.compile(
-            r"please\s+(delete|remove|read|access|send|forward|share)",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "ssh_connect_login",
-        re.compile(r"(ssh|connect|login)\s+(to|into)\s+", re.IGNORECASE),
-    ),
-]
-
-# Flat list kept for backward compatibility and internal use by
-# _content_matches_action.  Prefer NAMED_INJECTION_PATTERNS for new code.
-INJECTION_PATTERNS: list[re.Pattern[str]] = [p for _, p in NAMED_INJECTION_PATTERNS]
+# INJECTION_PATTERNS and NAMED_INJECTION_PATTERNS are now imported from
+# shieldflow.core.sanitiser to avoid duplication.
 
 
 class ActionValidator:
