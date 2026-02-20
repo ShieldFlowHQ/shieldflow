@@ -7,6 +7,31 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.2.1] — 2026-02-20
+
+Property-based testing release. Added comprehensive Hypothesis tests for the
+sanitiser pipeline, improving robustness against edge cases and fuzzing attacks.
+
+### Testing — D.1 Coverage Hardening
+
+- **22 property-based tests** — Added Hypothesis-powered fuzz tests covering:
+  - `sanitise()` — idempotence, type safety, original text preservation
+  - `normalize_unicode()` — zero-width stripping, NFKC, homoglyph mapping
+  - `strip_zero_width()` — ZWS, ZWNJ, ZWJ, tag chars
+  - `detect_base64_injection()` — encoding detection, roundtrip validation
+  - `detect_rot13_injection()` — ROT13 decode, self-inverse property
+  - `detect_hidden_text()` — HTML hidden, invisible Unicode, tag characters
+  - `_detect_compact_injection()` — ZWS-joined phrase detection
+  - Fuzz testing — extreme inputs, binary-like data, regression against known patterns
+
+### Stats
+
+- **492 tests** (22 property-based + 84 red-team + 386 unit/integration), 0 failures
+- **96% code coverage** across all modules
+- **Property testing** — 1000+ generated examples per test suite
+
+---
+
 ## [0.2.0] — 2026-02-20
 
 Security hardening release.  Phases A–C complete: all known bypasses patched,

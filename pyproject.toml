@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shieldflow"
-version = "0.2.0"
+version = "0.2.1"
 description = "Cryptographic trust boundaries for AI agents"
 readme = "README.md"
 license = "Apache-2.0"
@@ -40,6 +40,7 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.5",
     "types-PyYAML>=6.0",
+    "hypothesis>=6.100",
 ]
 
 [project.scripts]
@@ -69,3 +70,8 @@ xfail_strict = true
 [tool.mypy]
 python_version = "3.11"
 strict = true
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.151.9",
+]

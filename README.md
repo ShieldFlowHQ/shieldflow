@@ -41,6 +41,14 @@ Documents (untrusted) ───→   └─────────────�
 3. **Every action requires a minimum trust level** — sending a message requires `user` trust, executing code requires `owner` trust
 4. **Actions are traced to their origin** — if a tool call was triggered by untrusted data, it's blocked before execution
 
+## Dashboard
+
+ShieldFlow includes a built-in security dashboard for monitoring agent activity, reviewing blocked actions, and managing confirmation requests.
+
+![ShieldFlow Dashboard](docs/images/dashboard-screenshot.png)
+
+---
+
 ## Quick Start (OpenClaw)
 
 Add to your OpenClaw config (`~/.openclaw/openclaw.json`):
