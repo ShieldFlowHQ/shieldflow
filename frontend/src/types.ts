@@ -36,6 +36,6 @@ export interface DashboardData {
   blockedActions: DecisionEntry[]
   queue: DecisionEntry[]
   metrics: MetricsSnapshot
-  source: 'live-api' | 'mock-fallback'
+  source: 'live-api' | 'demo-mock' | 'mock-fallback'
   todo: string | null
 }

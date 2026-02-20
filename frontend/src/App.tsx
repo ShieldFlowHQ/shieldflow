@@ -40,6 +40,27 @@ function DashboardPage() {
 
   const { decisions, blockedActions, queue, metrics, source, todo } = data
 
+  const getDecisionBadge = (decision: string) => {
+    const classes: Record<string, string> = {
+      BLOCK: 'badge block',
+      ALLOW: 'badge allow',
+      CONFIRM: 'badge confirm',
+    }
+    return classes[decision] || 'badge'
+  }
+
+  const getTrustBadge = (trust: string) => {
+    const classes: Record<string, string> = {
+      OWNER: 'trust owner',
+      USER: 'trust user',
+      SYSTEM: 'trust system',
+      AGENT: 'trust agent',
+      TOOL: 'trust tool',
+      NONE: 'trust none',
+    }
+    return classes[trust] || 'trust'
+  }
+
   return (
     <main className="page dashboard">
       <header className="topbar">
@@ -82,24 +103,84 @@ function DashboardPage() {
             <tr>
               <th>Time</th>
               <th>Tool</th>
-              <th>Reason</th>
+              <th>Decision</th>
               <th>Trust</th>
+              <th>Reason</th>
             </tr>
           </thead>
           <tbody>
             {blockedActions.map((entry) => (
               <tr key={entry.entry_id}>
                 <td>{new Date(entry.timestamp).toLocaleString()}</td>
-                <td>{entry.tool_name}</td>
+                <td><code>{entry.tool_name}</code></td>
+                <td><span className={getDecisionBadge(entry.decision)}>{entry.decision}</span></td>
+                <td><span className={getTrustBadge(entry.trigger_trust)}>{entry.trigger_trust}</span></td>
                 <td>{entry.reason}</td>
-                <td>{entry.trigger_trust}</td>
               </tr>
             ))}
             {blockedActions.length === 0 ? (
               <tr>
-                <td colSpan={4}>No blocked actions in current window.</td>
+                <td colSpan={5}>No blocked actions in current window.</td>
               </tr>
             ) : null}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="card">
+        <h2>Confirmation Queue</h2>
+        <p className="help-text">Actions pending operator confirmation before execution.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Tool</th>
+              <th>Decision</th>
+              <th>Trust</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            {queue.map((entry) => (
+              <tr key={entry.entry_id}>
+                <td>{new Date(entry.timestamp).toLocaleString()}</td>
+                <td><code>{entry.tool_name}</code></td>
+                <td><span className={getDecisionBadge(entry.decision)}>{entry.decision}</span></td>
+                <td><span className={getTrustBadge(entry.trigger_trust)}>{entry.trigger_trust}</span></td>
+                <td>{entry.reason}</td>
+              </tr>
+            ))}
+            {queue.length === 0 ? (
+              <tr>
+                <td colSpan={5}>No pending confirmations.</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="card">
+        <h2>Recent Decisions</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Tool</th>
+              <th>Decision</th>
+              <th>Trust</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {decisions.map((entry) => (
+              <tr key={entry.entry_id}>
+                <td>{new Date(entry.timestamp).toLocaleString()}</td>
+                <td><code>{entry.tool_name}</code></td>
+                <td><span className={getDecisionBadge(entry.decision)}>{entry.decision}</span></td>
+                <td><span className={getTrustBadge(entry.trigger_trust)}>{entry.trigger_trust}</span></td>
+                <td>{entry.trigger_source}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </section>
