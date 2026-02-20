@@ -1,0 +1,37 @@
+name: Keeper Stale Sweep
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark and close stale items
+        uses: actions/stale@v10
+        with:
+          stale-issue-message: |
+            🧹 Keeper ping: this issue has been quiet for a while, so it is now marked as stale.
+            If this still matters, comment with fresh context and we'll reopen the thread.
+          stale-pr-message: |
+            🧹 Keeper ping: this PR has been inactive and is now marked as stale.
+            Rebase, update, or leave a note to keep it warm.
+          close-issue-message: |
+            Closing as stale to keep our backlog actionable.
+            No hard feelings — revive anytime with an update.
+          close-pr-message: |
+            Closing this stale PR for now.
+            Reopen when you're ready to continue.
+          days-before-stale: 30
+          days-before-close: 7
+          stale-issue-label: status/stale
+          stale-pr-label: status/stale
+          exempt-issue-labels: status/blocked,priority/high
+          exempt-pr-labels: status/blocked,priority/high
+          remove-stale-when-updated: true

@@ -1,0 +1,78 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "shieldflow"
+version = "0.2.1"
+description = "Cryptographic trust boundaries for AI agents"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [
+    { name = "ShieldFlow Contributors" },
+]
+keywords = ["ai", "security", "prompt-injection", "llm", "firewall", "trust"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "httpx>=0.24.0",
+    "pyyaml>=6.0",
+    "click>=8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=4.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5",
+    "types-PyYAML>=6.0",
+    "hypothesis>=6.100",
+]
+
+[project.scripts]
+shieldflow = "shieldflow.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/shieldflow/shieldflow"
+Documentation = "https://github.com/shieldflow/shieldflow/tree/main/docs"
+Repository = "https://github.com/shieldflow/shieldflow"
+Issues = "https://github.com/shieldflow/shieldflow/issues"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = ["src/shieldflow/core/dlp_classifier.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+# Hardening gate: any @pytest.mark.xfail that unexpectedly passes (XPASS) will
+# now FAIL the test suite unless the test explicitly sets strict=False.
+# This prevents regressions from silently becoming "expected failures" again.
+xfail_strict = true
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.151.9",
+]
