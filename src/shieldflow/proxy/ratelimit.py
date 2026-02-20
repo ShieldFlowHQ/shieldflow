@@ -81,7 +81,8 @@ class RateLimiter:
             return True
         with self._lock:
             self._evict_locked(key)
-            return len(self._windows[key]) < self._rpm
+            dq = self._windows.get(key)
+            return (dq is not None and len(dq) < self._rpm) or (dq is None)
 
     def check(self, key: str) -> None:
         """Record a request for *key* and raise HTTP 429 if over limit.
@@ -97,7 +98,11 @@ class RateLimiter:
             return
         with self._lock:
             self._evict_locked(key)
-            if len(self._windows[key]) >= self._rpm:
+            dq = self._windows.get(key)
+            if dq is None:
+                dq = deque()
+                self._windows[key] = dq
+            if len(dq) >= self._rpm:
                 raise HTTPException(
                     status_code=429,
                     detail=(
@@ -105,7 +110,7 @@ class RateLimiter:
                         "Please retry after a short delay."
                     ),
                 )
-            self._windows[key].append(time.monotonic())
+            dq.append(time.monotonic())
 
     def current_count(self, key: str) -> int:
         """Number of requests from *key* in the current 60-second window.
@@ -116,7 +121,37 @@ class RateLimiter:
             return 0
         with self._lock:
             self._evict_locked(key)
-            return len(self._windows[key])
+            dq = self._windows.get(key)
+            return len(dq) if dq else 0
+
+    def remaining(self, key: str) -> int:
+        """Number of requests remaining for *key* in the current window.
+
+        Returns 0 if over limit, otherwise returns (rpm - current_count).
+        """
+        if self._rpm == 0:
+            return 0  # Unlimited, but we return 0 for consistency
+        with self._lock:
+            self._evict_locked(key)
+            dq = self._windows.get(key)
+            count = len(dq) if dq else 0
+            return max(0, self._rpm - count)
+
+    def reset_time(self, key: str) -> int:
+        """Unix timestamp when the rate limit window will reset for *key*.
+
+        Returns 0 if rate limiting is disabled or the key has no requests.
+        """
+        if self._rpm == 0:
+            return 0
+        with self._lock:
+            self._evict_locked(key)
+            dq = self._windows.get(key)
+            if not dq:
+                return 0
+            # Window resets when the oldest request expires (60s from that request)
+            oldest = dq[0] if dq else 0
+            return int(oldest + _WINDOW_SECONDS)
 
     def reset(self, key: str) -> None:
         """Clear all recorded requests for *key* (testing / admin use)."""
@@ -133,6 +168,22 @@ class RateLimiter:
                 if dq and dq[-1] >= cutoff
             ]
 
+    def cleanup(self, max_age_seconds: int = 300) -> int:
+        """Remove entries older than max_age_seconds. Returns count removed."""
+        removed = 0
+        now = time.monotonic()
+        with self._lock:
+            for key in list(self._windows.keys()):
+                dq = self._windows.get(key)
+                if dq:
+                    # Remove old entries
+                    while dq and now - dq[0] > max_age_seconds:
+                        dq.popleft()
+                        removed += 1
+                    if not dq:
+                        del self._windows[key]
+        return removed
+
     # ------------------------------------------------------------------ #
     # Internal                                                             #
     # ------------------------------------------------------------------ #
@@ -140,6 +191,21 @@ class RateLimiter:
     def _evict_locked(self, key: str) -> None:
         """Remove timestamps outside the sliding window (lock must be held)."""
         cutoff = time.monotonic() - _WINDOW_SECONDS
-        dq = self._windows[key]
-        while dq and dq[0] < cutoff:
-            dq.popleft()
+        
+        # Clean up the specified key
+        dq = self._windows.get(key)
+        if dq is not None:
+            while dq and dq[0] < cutoff:
+                dq.popleft()
+            # Remove empty deques to prevent unbounded dict growth
+            if not dq:
+                self._windows.pop(key, None)
+        
+        # Also clean up any other empty deques to prevent memory leaks
+        # This is a simple lazy cleanup strategy
+        keys_to_remove = [
+            k for k, d in self._windows.items() 
+            if not d
+        ]
+        for k in keys_to_remove:
+            self._windows.pop(k, None)

@@ -45,6 +45,7 @@ Response headers added by the proxy:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 import uuid
@@ -883,6 +884,12 @@ def create_app(
             tenant_label = config.tenants[rate_key].label or rate_key[:8] + "..."
             response_headers["X-ShieldFlow-Tenant"] = tenant_label
 
+        # Emit rate limit headers if rate limiting is enabled.
+        if t_limiter.rpm > 0:
+            rl_key = rate_key or (request.client.host if request.client else "unknown")
+            response_headers["X-RateLimit-Remaining"] = str(t_limiter.remaining(rl_key))
+            response_headers["X-RateLimit-Reset"] = str(t_limiter.reset_time(rl_key))
+
         # Emit session-level anomaly signals when session_id is present.
         if session_id:
             risk = _anomaly.risk_score(session_id)
@@ -911,13 +918,15 @@ def create_app(
         }
 
     @app.get("/health/ready")
-    async def health_ready() -> JSONResponse:
+    async def health_ready(request: Request) -> JSONResponse:
         """Readiness probe — returns 200 when the proxy can serve traffic.
 
         Checks:
           * **upstream** — upstream URL and API key are configured.
           * **auth** — API-key list is consistent (open mode is valid).
           * **policy** — policy engine is loaded and operational.
+          * **upstream_connectivity** — (optional) actual reachability check
+            to the upstream URL. Pass ``?check_upstream=true`` to enable.
 
         Returns HTTP 200 with ``status: ready`` on success, or HTTP 503
         with ``status: not_ready`` and per-check detail on failure.
@@ -944,6 +953,32 @@ def create_app(
 
         # 3. Policy engine — always loaded in create_app(); just confirm
         checks["policy"] = "ok"
+
+        # 4. Optional upstream connectivity check
+        check_upstream = request.query_params.get("check_upstream", "false").lower() == "true"
+        if check_upstream and config.upstream.url and config.upstream.api_key:
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    # Send a minimal request to check upstream is reachable
+                    # Use models list endpoint as a lightweight probe
+                    probe_url = f"{config.upstream.url}/v1/models"
+                    resp = await client.get(
+                        probe_url,
+                        headers={"Authorization": f"Bearer {config.upstream.api_key}"},
+                    )
+                    if resp.status_code < 500:
+                        checks["upstream_connectivity"] = "ok"
+                    else:
+                        checks["upstream_connectivity"] = f"error_{resp.status_code}"
+                        failures.append("upstream_connectivity")
+            except httpx.TimeoutException:
+                checks["upstream_connectivity"] = "timeout"
+                failures.append("upstream_connectivity")
+            except httpx.RequestError as exc:
+                checks["upstream_connectivity"] = f"error_{type(exc).__name__}"
+                failures.append("upstream_connectivity")
+        elif check_upstream:
+            checks["upstream_connectivity"] = "skipped_missing_config"
 
         if failures:
             return JSONResponse(
@@ -1013,6 +1048,23 @@ def create_app(
 
     # Register the security dashboard routes
     add_dashboard_routes(app, _decision_log)
+
+    # ------------------------------------------------------------------ #
+    # Background: periodic rate-limiter cleanup                            #
+    # ------------------------------------------------------------------ #
+
+    @app.on_event("startup")
+    async def _start_cleanup_task() -> None:
+        """Spawn a background task that calls cleanup() every 5 minutes."""
+
+        async def _cleanup_loop() -> None:
+            while True:
+                await asyncio.sleep(300)  # 5 minutes
+                _rate_limiter.cleanup()
+                for limiter in _tenant_limiters.values():
+                    limiter.cleanup()
+
+        asyncio.ensure_future(_cleanup_loop())
 
     @app.get("/metrics")
     async def prometheus_metrics() -> PlainTextResponse:
