@@ -1,58 +1,62 @@
 # 🛡️ ShieldFlow
 
-**Protect your AI agents from hackers and trickery — automatically.**
+**The easy way to keep your AI agents safe from hackers.**
 
 [![PyPI](https://img.shields.io/pypi/v/shieldflow?color=blue)](https://pypi.org/project/shieldflow/)
 [![Python](https://img.shields.io/pypi/pyversions/shieldflow)](https://pypi.org/project/shieldflow/)
 [![License](https://img.shields.io/pypi/l/shieldflow?color=green)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-492%20%2F%2084%20adversarial-green)](tests/)
 
-## What does ShieldFlow do?
+---
 
-Imagine if someone could slip a secret note into your mail that makes your assistant do something bad — like send them money or share private passwords. That's basically what **prompt injection** is. It's a trick where hackers hide malicious instructions inside emails, web pages, or documents.
+## 👋 What is this?
 
-ShieldFlow stops this. It's like a security guard that checks every instruction before your AI agent acts on it.
+Think of ShieldFlow as a **security guard** for your AI agents.
 
-## Why does this matter?
+Just like a guard checks who comes into a building, ShieldFlow checks every instruction before your AI agent acts on it. It stops sneaky tricks from working — so your agent stays safe.
 
-If you use AI agents to:
+## 🤔 Why should I care?
+
+If you use AI agents to do helpful things like:
 - Read and reply to emails
-- Browse the web for you
+- Browse the web
 - Process documents or PDFs
-- Help customers or team members
+- Help customers or teammates
 
-...then your agent could be tricked into doing something you didn't want. A sneaky web page could make it leak information. A crafty email could make it send messages to the wrong person.
+...then hackers could potentially trick your agent into doing something bad. Like leaking private information or sending messages to the wrong person.
 
-**ShieldFlow makes sure that can't happen.**
+**ShieldFlow stops that from happening.** It's like having a watchful friend looking over your agent's shoulder — but automatically.
 
-## How it works (in simple terms)
+## 🔍 How does it work?
+
+Here's the simple version:
 
 ```
-You tell your agent what to do ✓ → ShieldFlow checks it → Your agent does it
+You ask your agent to do something → ShieldFlow checks it → Agent does it ✓
 
-A website tries to trick your agent ✗ → ShieldFlow blocks it → Nothing happens
+A tricky website tries to trick your agent → ShieldFlow blocks it ✗
 ```
 
-ShieldFlow assigns a **trust level** to everything:
-- **You** → Highest trust (you know what you're doing)
-- **Your users** → High trust (authorised people)
-- **Web pages & emails** → No trust (they could be trying to trick you)
+ShieldFlow gives everything a **trust score**:
+- **You** → Full trust (you know what you're doing)
+- **Your team** → High trust (authorized people)
+- **Websites & emails** → No trust (they might be trying to trick you)
 
-When something untrusted tries to make your agent do something important (like send a message), ShieldFlow blocks it.
+When something untrusted tries to make your agent do something important (like send an email), ShieldFlow says "nope" and blocks it.
 
-## What's the benefit?
+## ✨ What's the upside?
 
-✅ Your AI agent stays safe from hackers  
-✅ You can still use web browsing and email normally  
-✅ No extra steps needed — it works in the background  
-✅ It's free and open source  
-✅ Fast — adds less than 10 milliseconds to responses  
+- 🔒 Your AI agent can't be tricked by hackers
+- 🌐 You can still browse the web and read emails normally
+- ⚡ It's fast — adds less than 10 milliseconds to responses
+- 🎉 It's free and open source — no payments, ever
+- 🛠️ Works quietly in the background
 
-## Quick Setup
+## 🚀 Get Started (Super Quick)
 
-### If you use OpenClaw
+### Option 1: If you use OpenClaw
 
-Add this to your config (`~/.openclaw/openclaw.json`):
+Just add this to your config (`~/.openclaw/openclaw.json`):
 
 ```json
 {
@@ -65,69 +69,69 @@ Add this to your config (`~/.openclaw/openclaw.json`):
 }
 ```
 
-That's it! ShieldFlow will start protecting your agents.
+Done! ShieldFlow is now protecting your agents.
 
-### Want to try it directly?
+### Option 2: Try it directly
 
 ```bash
 # Install ShieldFlow
 pip install shieldflow
 
-# Set it up with default settings
+# Set it up
 shieldflow init
 
-# Run as a protective proxy
+# Run it as a protective barrier
 shieldflow proxy --port 8080 --target openai
 ```
 
-Then just point your agent to `http://localhost:8080/v1` instead of directly to OpenAI. ShieldFlow works its magic automatically.
+Then point your agent to `http://localhost:8080/v1` instead of OpenAI directly. That's it!
 
-## What gets blocked?
+## 🚫 What gets blocked?
 
-- 🚫 Web pages trying to control your agent
-- 🚫 Emails with hidden malicious instructions
-- 🚫 Documents that try to make your agent do things
-- 🚫 Hackers trying to steal your data
-- 🚫 Tricks that combine multiple attacks
+- Web pages that try to control your agent
+- Emails with hidden sneaky instructions
+- Documents that try to make your agent do things
+- Hackers trying to steal your data
 
-## What still works normally?
+## ✅ What still works normally?
 
-- ✅ Reading emails
-- ✅ Browsing the web
-- ✅ Processing documents
-- ✅ All legitimate requests from trusted sources
+- Reading emails ✅
+- Browsing the web ✅
+- Processing documents ✅
+- Requests from you and your team ✅
 
-## Dashboard
+## 📊 Want to see what's happening?
 
-ShieldFlow comes with a built-in dashboard where you can see:
-- What actions were blocked (and why)
+ShieldFlow has a dashboard where you can see:
+- What was blocked (and why)
 - Your agent's activity
-- Security alerts and warnings
+- Any security alerts
 
 ![ShieldFlow Dashboard](docs/images/dashboard-screenshot.png)
 
-## For Developers
+## 👨‍💻 For Developers
 
-Want to dive deeper? Check out our full documentation:
+Want to dig deeper? Here's where to go:
 
-- [Architecture Overview](docs/architecture/SYSTEM_OVERVIEW.md) — How it all works technically
+- [Quickstart Guide](docs/guides/quickstart.md) — Get up and running fast
+- [Architecture Overview](docs/architecture/SYSTEM_OVERVIEW.md) — How it works technically
+- [OpenClaw Integration](docs/guides/openclaw.md) — Step-by-step setup
 - [API Reference](docs/api/REFERENCE.md) — Programming details
-- [OpenClaw Integration Guide](docs/guides/openclaw.md) — Step-by-step setup
-- [Quickstart](docs/guides/quickstart.md) — Get started fast
 
-## About ShieldFlow
+## 📝 About ShieldFlow
 
-ShieldFlow is built for [OpenClaw](https://openclaw.ai) — a platform for running AI agents. It's:
-- 🔓 Free and open source (Apache 2.0)
-- 🤖 Built by AI agents, for AI agents
-- 🚫 Not a paid product — no subscription, ever
+ShieldFlow was built for [OpenClaw](https://openclaw.ai) — a platform for running AI agents.
 
-## License
+- 🔓 Free and open source (Apache 2.0 license)
+- 🤖 Built by AI, for AI
+- 🚫 No subscriptions, ever
+
+## 📜 License
 
 [Apache 2.0](LICENSE) — Use it freely, forever.
 
 ---
 
-**Questions? Found a bug?** See [CONTRIBUTING.md](CONTRIBUTING.md) or [SECURITY.md](SECURITY.md).
+**Something broken?** Check out [CONTRIBUTING.md](CONTRIBUTING.md) or [SECURITY.md](SECURITY.md).
 
 *Built by AI. For AI. To protect AI.*
