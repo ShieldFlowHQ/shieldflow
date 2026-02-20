@@ -57,15 +57,6 @@ class ValidationResult:
         return self.decision == ActionDecision.CONFIRM
 
 
-# Zero-width characters that can be used to evade pattern matching
-_ZERO_WIDTH_CHARS = re.compile(r"[\u200b\u200c\u200d\u2060\ufeff]")
-
-
-def _strip_zero_width(text: str) -> str:
-    """Strip zero-width Unicode characters used to evade detection."""
-    return _ZERO_WIDTH_CHARS.sub("", text)
-
-
 # Named injection patterns.  The name is included in audit log
 # ``matched_patterns`` fields to give operators machine-parseable provenance.
 NAMED_INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
