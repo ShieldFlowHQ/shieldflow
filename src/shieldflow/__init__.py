@@ -7,7 +7,7 @@ from shieldflow.core.trust import TrustLevel
 from shieldflow.core.validator import ActionValidator
 from shieldflow.shieldflow import ShieldFlow
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "ShieldFlow",

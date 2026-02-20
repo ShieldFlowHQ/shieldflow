@@ -907,7 +907,7 @@ def create_app(
         return {
             "status": "ok",
             "service": "shieldflow-proxy",
-            "version": "0.1.0",
+            "version": "0.2.0",
         }
 
     @app.get("/health/ready")
@@ -984,7 +984,7 @@ def create_app(
         return {
             "status": "ok",
             "service": "shieldflow-proxy",
-            "version": "0.1.0",
+            "version": "0.2.0",
             "uptime_seconds": round(uptime, 2),
             "config": {
                 "upstream_url": config.upstream.url,

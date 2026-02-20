@@ -7,6 +7,90 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.2.0] — 2026-02-20
+
+Security hardening release.  Phases A–C complete: all known bypasses patched,
+observability pipeline operational, and cloud-ready multi-tenant architecture
+deployed.  386 tests across unit, integration, and red-team suites.
+
+### Security — Phase A Hardening
+
+- **Normalization pipeline** — base64 decode, HTML entity decode, Unicode NFKC,
+  homoglyph mapping, and ROT13 detection in `ActionValidator` and `Sanitiser`.
+- **Injection detection** — authority/social-engineering phrasing patterns,
+  robust action linkage, agent-trust content scanning.
+- **84 red-team tests** — all passing; zero known bypass regressions.
+
+### Observability — Phase B
+
+- **`MetricsCollector`** — Prometheus-format metrics for allow/block/confirm
+  decisions, per-tool breakdowns, and top blocked patterns.
+- **`AnomalyMonitor`** — per-session rolling risk scores, spike detection with
+  rising-edge counter, TTL-based session eviction, thread-safe.
+- **Prometheus metrics** — `shieldflow_decisions_total`, `shieldflow_session_risk_score`,
+  `shieldflow_anomaly_spikes_total`, `shieldflow_active_sessions`.
+- **`DecisionLog` + `/dashboard`** — HTML decision triage UI with filterable
+  view, provenance panel, and confirmation queue (no JS required).
+- **`/dashboard/api/decisions`** and **`/dashboard/api/queue`** — JSON APIs.
+- **Session anomaly headers** — `X-ShieldFlow-Risk-Score`,
+  `X-ShieldFlow-Session-At-Risk` (opt-in via `X-ShieldFlow-Session-ID`).
+
+### Cloud Readiness — Phase C
+
+#### Streaming & Guardrails
+- **SSE streaming** — `stream: true` support via buffer-validate-re-emit.
+  Security invariant: content never reaches client before validation.
+  Header: `X-ShieldFlow-Streamed: buffered-validated`.
+- **Request guardrails** — configurable `max_request_body_bytes` (HTTP 413),
+  `max_messages_per_request` (HTTP 422), `rate_limit_rpm` (HTTP 429).
+- **`RateLimiter`** — sliding-window (60 s) per-key rate limiter, thread-safe.
+
+#### Multi-Tenant
+- **`TenantConfig`** — per-Bearer-token overrides for `policy_path`,
+  `rate_limit_rpm`, `default_trust`, and `label`.
+- **Lazy caching** — per-tenant `PolicyEngine` and `RateLimiter` instances
+  created on first request, reused thereafter.
+- **`X-ShieldFlow-Tenant`** response header for ops visibility.
+
+#### MCP Trust Policy
+- **`MCPServerPolicy`** — per-MCP-server trust with verification-capped
+  enforcement (`effective_server_trust()` caps unverified at NONE).
+- **Tool allowlisting** — `allowed_tools` restricts which tools a server may expose.
+- **`SecureContext.add_mcp_tool_result()`** and **`add_mcp_resource()`** —
+  MCP-specific context methods with provenance tagging.
+- **`DEFAULT_MCP_POLICY`** — secure by default (all NONE, unverified).
+- **Formal spec** — `docs/architecture/MCP-TRUST-POLICY.md`.
+
+#### Production Operations
+- **Health endpoints** — `GET /health` (liveness), `GET /health/ready`
+  (readiness, 503 on misconfig), `GET /health/detailed` (uptime, config,
+  metrics, anomaly).
+- **Dependabot** — weekly pip + GitHub Actions update PRs.
+- **SBOM** — CycloneDX generation in CI, 90-day artifact retention.
+- **Deployment guide** — `docs/deployment/SECURITY-BASELINE.md` with config
+  checklist, secret management, monitoring, incident runbooks.
+- **Grafana dashboard** — `docs/ops/grafana-dashboard.json`.
+
+### Configuration
+
+New `ProxyConfig` fields (all backward-compatible with zero-value defaults):
+
+| Field | Default | Env var |
+|---|---|---|
+| `max_request_body_bytes` | 1048576 | `SHIELDFLOW_MAX_BODY_BYTES` |
+| `max_messages_per_request` | 500 | `SHIELDFLOW_MAX_MESSAGES` |
+| `rate_limit_rpm` | 0 (off) | `SHIELDFLOW_RATE_LIMIT_RPM` |
+| `tenants` | `{}` | YAML only |
+| `mcp_servers` | `{}` | YAML only |
+
+### Stats
+
+- **386 tests** (84 red-team + 302 unit/integration), 0 failures
+- **91% code coverage** across all modules
+- **14 autonomous build cycles** (cycles 1–14)
+
+---
+
 ## [0.1.0] — 2026-02-19
 
 First public release.  Everything in this release was built from scratch as
