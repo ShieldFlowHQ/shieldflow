@@ -639,6 +639,20 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  // Fetch real uptime
+  useEffect(() => {
+    const fetchUptime = async () => {
+      try {
+        const res = await fetch('/health/detailed')
+        const json = await res.json()
+        setRealtimeMetrics(prev => ({ ...prev, uptime: Math.floor(json.uptime_seconds || 0) }))
+      } catch (e) { /* ignore */ }
+    }
+    fetchUptime()
+    const interval = setInterval(fetchUptime, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
   useEffect(() => {
     const init = async () => {
       const [dashboardData, configData, onboardingState] = await Promise.all([
@@ -651,9 +665,10 @@ export default function App() {
       setShowOnboarding(!onboardingState.isComplete)
       setLoading(false)
       
-      // Simulate realtime metrics
+      // Simulate other realtime metrics
       setInterval(() => {
-        setRealtimeMetrics({
+        setRealtimeMetrics(prev => ({
+          ...prev,
           requestsPerMinute: Math.floor(Math.random() * 30) + 5,
           decisionsPerMinute: {
             allow: Math.floor(Math.random() * 20) + 10,
@@ -662,8 +677,7 @@ export default function App() {
           },
           activeSessions: Math.floor(Math.random() * 8) + 1,
           queueDepth: Math.floor(Math.random() * 5),
-          uptime: Math.floor(Math.random() * 86400) + 3600,
-        })
+        }))
       }, 5000)
     }
     init()
