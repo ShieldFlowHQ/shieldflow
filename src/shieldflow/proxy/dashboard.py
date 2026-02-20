@@ -437,7 +437,7 @@ def add_dashboard_routes(app: FastAPI, decision_log: DecisionLog) -> None:
         tool: str | None = Query(default=None),
         trust: str | None = Query(default=None),
         n: int = Query(default=50, ge=1, le=200),
-    ) -> str:
+    ) -> HTMLResponse:
         """HTML security dashboard for decision triage.
 
         Query parameters:
