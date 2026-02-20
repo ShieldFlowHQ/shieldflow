@@ -54,13 +54,51 @@ from typing import Any
 
 # ─── Configuration constants ──────────────────────────────────────────────────
 
-WINDOW_SIZE: int = 20
+# Default values — can be overridden via config or environment variables
+_DEFAULT_WINDOW_SIZE: int = 20
+"""Default number of recent decisions to include in the rolling risk score."""
+
+_DEFAULT_SPIKE_THRESHOLD: float = 0.5
+"""Default risk score above which a session is considered anomalous."""
+
+_DEFAULT_MIN_DECISIONS: int = 3
+"""Default minimum decisions in the window before spike detection activates."""
+
+
+def _get_configurable_int(name: str, default: int, env_prefix: str = "SHIELDFLOW_ANOMALY_") -> int:
+    """Load an integer config value from environment or use default."""
+    import os
+    env_key = f"{env_prefix}{name}"
+    val = os.environ.get(env_key)
+    if val is not None:
+        try:
+            return int(val)
+        except ValueError:
+            pass
+    return default
+
+
+def _get_configurable_float(name: str, default: float, env_prefix: str = "SHIELDFLOW_ANOMALY_") -> float:
+    """Load a float config value from environment or use default."""
+    import os
+    env_key = f"{env_prefix}{name}"
+    val = os.environ.get(env_key)
+    if val is not None:
+        try:
+            return float(val)
+        except ValueError:
+            pass
+    return default
+
+
+# Module-level defaults that can be read at runtime
+WINDOW_SIZE: int = _get_configurable_int("WINDOW_SIZE", _DEFAULT_WINDOW_SIZE)
 """Number of recent decisions to include in the rolling risk score."""
 
-SPIKE_THRESHOLD: float = 0.5
+SPIKE_THRESHOLD: float = _get_configurable_float("SPIKE_THRESHOLD", _DEFAULT_SPIKE_THRESHOLD)
 """Risk score above which a session is considered anomalous."""
 
-MIN_DECISIONS: int = 3
+MIN_DECISIONS: int = _get_configurable_int("MIN_DECISIONS", _DEFAULT_MIN_DECISIONS)
 """Minimum decisions in the window before spike detection activates."""
 
 MAX_SESSIONS: int = 1_000
@@ -97,6 +135,9 @@ class SessionState:
     window: deque[DecisionPoint] = field(default_factory=lambda: deque(maxlen=WINDOW_SIZE))
     spike_count: int = 0
     last_seen: float = field(default_factory=time.monotonic)
+    window_size: int = WINDOW_SIZE
+    spike_threshold: float = SPIKE_THRESHOLD
+    min_decisions: int = MIN_DECISIONS
 
     # ------------------------------------------------------------------ #
     # Derived properties                                                   #
@@ -126,9 +167,9 @@ class SessionState:
 
     def is_anomalous(self) -> bool:
         """True when spike conditions are met (see module docstring)."""
-        if len(self.window) < MIN_DECISIONS:
+        if len(self.window) < self.min_decisions:
             return False
-        if self.risk_score() < SPIKE_THRESHOLD:
+        if self.risk_score() < self.spike_threshold:
             return False
         # Condition 3: the most recent decision from an untrusted source is BLOCK
         for point in reversed(self.window):
@@ -178,11 +219,17 @@ class AnomalyMonitor:
         self,
         max_sessions: int = MAX_SESSIONS,
         ttl_seconds: int = TTL_SECONDS,
+        window_size: int = WINDOW_SIZE,
+        spike_threshold: float = SPIKE_THRESHOLD,
+        min_decisions: int = MIN_DECISIONS,
     ) -> None:
         self._lock = threading.Lock()
         self._sessions: dict[str, SessionState] = {}
         self._max_sessions = max_sessions
         self._ttl_seconds = ttl_seconds
+        self._window_size = window_size
+        self._spike_threshold = spike_threshold
+        self._min_decisions = min_decisions
         self._total_spikes: int = 0
 
     # ------------------------------------------------------------------ #
@@ -305,7 +352,12 @@ class AnomalyMonitor:
         if session_id not in self._sessions:
             if len(self._sessions) >= self._max_sessions:
                 self._evict_oldest_locked()
-            self._sessions[session_id] = SessionState(session_id=session_id)
+            self._sessions[session_id] = SessionState(
+                session_id=session_id,
+                window_size=self._window_size,
+                spike_threshold=self._spike_threshold,
+                min_decisions=self._min_decisions,
+            )
         return self._sessions[session_id]
 
     def _evict_stale_locked(self) -> None:
