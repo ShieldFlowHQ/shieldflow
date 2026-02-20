@@ -598,3 +598,51 @@ Fixed `.github/workflows/ci.yml` SBOM generation step.
 - Next: ROADMAP update to reflect Phase C completion and plan Phase D, or close remaining housekeeping
 
 ---
+
+## Cycle 15 — 2026-02-20 11:00 AEDT
+
+### Focus
+v0.2.0 release: update ROADMAP, CHANGELOG, version bump, and tag.
+
+### Status at Cycle Start
+- **CI:** ✅ GREEN (last 2 runs success)
+- **Tests:** 386 passing, 91% coverage
+- **Phase status:** A ✅ B ✅ C ✅ — all complete
+
+### Actions Taken
+
+#### 1. ROADMAP.md update
+- Marked Phases A–C as ✅ COMPLETE with per-item checkmarks
+- Defined **Phase D** with 4 workstreams:
+  - D.1: Test coverage hardening (session.py 55%→90%+, context.py 74%→90%+)
+  - D.2: v0.2.0 release mechanics (changelog, version bump, tag, publish)
+  - D.3: Community readiness (CONTRIBUTING.md, issue templates, SECURITY.md)
+  - D.4: Advanced security (semantic DLP, adaptive policy, MCP manifest pinning)
+
+#### 2. Version bump to 0.2.0
+- `pyproject.toml`: `version = "0.2.0"`
+- `src/shieldflow/__init__.py`: `__version__ = "0.2.0"`
+- `src/shieldflow/proxy/server.py`: health endpoint version fields
+
+#### 3. CHANGELOG.md — v0.2.0 release notes
+Comprehensive release notes covering all Phase A–C work:
+- Security hardening (normalization, injection detection, red-team tests)
+- Observability (metrics, anomaly detection, dashboard)
+- Cloud readiness (streaming, guardrails, multi-tenant, MCP, health, SBOM)
+- Configuration reference table
+- Stats: 386 tests, 91% coverage, 14 cycles
+
+#### 4. Git tag v0.2.0
+- Annotated tag `v0.2.0` pushed to origin
+- Tag message summarizes all delivered capabilities
+
+### Commit
+`a783231` — `release: v0.2.0 — security hardening release (Phases A–C complete)`
+
+### Outcome
+- **v0.2.0 tagged and pushed** 🎉
+- ROADMAP reflects current state and Phase D direction
+- 386 tests pass, 0 failures
+- Next: Phase D — test coverage hardening, community readiness, advanced features
+
+---
