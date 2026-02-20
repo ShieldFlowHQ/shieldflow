@@ -646,3 +646,40 @@ Comprehensive release notes covering all Phase A–C work:
 - Next: Phase D — test coverage hardening, community readiness, advanced features
 
 ---
+
+## Cycle 16 — 2026-02-20 11:30 AEDT
+
+### Focus
+Phase D.1: test coverage hardening for security-critical modules `session.py` and `context.py`.
+
+### Status at Cycle Start
+- **CI:** ✅ GREEN
+- **Tests:** 386 passing, 91% overall coverage
+- **Gaps:** session.py 55%, context.py 74%
+
+### Actions Taken
+41 new tests in 2 files:
+
+**`tests/unit/test_session.py`** (21 tests) — SecureSession lifecycle:
+init (custom key/policy/trust), add_instruction signing + OWNER/USER trust tagging, add_system, add_data (3 trust types), add_tool_result, to_messages, validate_action (allowed/blocked), validate_actions batch, new_context reset.
+
+**`tests/unit/test_context_coverage.py`** (20 tests) — SecureContext serialization:
+to_messages (empty, preamble on/off, all block types, untrusted wrapping, tool_call_id, ordering, preamble content), add_data trust branching (string/enum/TrustTag), get_block, get_untrusted_blocks, get_instruction_blocks.
+
+### Coverage Results
+
+| Module | Before | After |
+|---|---|---|
+| `session.py` | 55% | **100%** |
+| `context.py` | 74% | **100%** |
+| **Overall** | 91% | **93%** |
+
+### Commit
+`17b2a71` — `test(coverage): session.py 55→100%, context.py 74→100%`
+
+### Outcome
+- **427 tests pass**, 0 failures
+- Both security-critical modules at 100% coverage
+- Remaining coverage gaps: `cli.py` (0%, 42 lines), `shieldflow.py` (49%, 18 lines) — lower priority (entry points)
+
+---
