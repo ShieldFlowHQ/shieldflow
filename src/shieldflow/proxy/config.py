@@ -210,6 +210,19 @@ class ProxyConfig:
     """Maximum requests per minute per API key (or per IP when auth is
     disabled).  ``0`` disables rate limiting.  Default: 0 (unlimited)."""
 
+    # ── Anomaly detection ──────────────────────────────────────────────── #
+    anomaly_window_size: int = 20
+    """Number of recent decisions to include in rolling risk score.
+    Default: 20."""
+
+    anomaly_spike_threshold: float = 0.5
+    """Risk score above which a session is considered anomalous.
+    Default: 0.5."""
+
+    anomaly_min_decisions: int = 3
+    """Minimum decisions in window before spike detection activates.
+    Default: 3."""
+
     @classmethod
     def from_yaml(cls, path: str) -> ProxyConfig:
         """Load configuration from a YAML file.
@@ -276,6 +289,9 @@ class ProxyConfig:
             max_request_body_bytes=int(data.get("max_request_body_bytes", 1_048_576)),
             max_messages_per_request=int(data.get("max_messages_per_request", 500)),
             rate_limit_rpm=int(data.get("rate_limit_rpm", 0)),
+            anomaly_window_size=int(data.get("anomaly_window_size", 20)),
+            anomaly_spike_threshold=float(data.get("anomaly_spike_threshold", 0.5)),
+            anomaly_min_decisions=int(data.get("anomaly_min_decisions", 3)),
         )
 
     @classmethod
@@ -295,6 +311,9 @@ class ProxyConfig:
             SHIELDFLOW_MAX_BODY_BYTES: Max request body in bytes (default: 1048576).
             SHIELDFLOW_MAX_MESSAGES: Max messages per request (default: 500).
             SHIELDFLOW_RATE_LIMIT_RPM: Requests per minute per key (default: 0 = off).
+            SHIELDFLOW_ANOMALY_WINDOW_SIZE: Decision window size (default: 20).
+            SHIELDFLOW_ANOMALY_SPIKE_THRESHOLD: Spike threshold 0.0-1.0 (default: 0.5).
+            SHIELDFLOW_ANOMALY_MIN_DECISIONS: Min decisions before detection (default: 3).
 
         Returns:
             A configured ProxyConfig instance.
@@ -324,6 +343,9 @@ class ProxyConfig:
                 os.environ.get("SHIELDFLOW_MAX_MESSAGES", "500")
             ),
             rate_limit_rpm=int(os.environ.get("SHIELDFLOW_RATE_LIMIT_RPM", "0")),
+            anomaly_window_size=int(os.environ.get("SHIELDFLOW_ANOMALY_WINDOW_SIZE", "20")),
+            anomaly_spike_threshold=float(os.environ.get("SHIELDFLOW_ANOMALY_SPIKE_THRESHOLD", "0.5")),
+            anomaly_min_decisions=int(os.environ.get("SHIELDFLOW_ANOMALY_MIN_DECISIONS", "3")),
         )
 
 

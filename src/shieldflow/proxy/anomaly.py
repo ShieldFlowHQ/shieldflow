@@ -114,6 +114,9 @@ class SessionState:
     window: deque[DecisionPoint] = field(default_factory=lambda: deque(maxlen=DEFAULT_WINDOW_SIZE))
     spike_count: int = 0
     last_seen: float = field(default_factory=time.monotonic)
+    window_size: int = WINDOW_SIZE
+    spike_threshold: float = SPIKE_THRESHOLD
+    min_decisions: int = MIN_DECISIONS
 
     # ------------------------------------------------------------------ #
     # Derived properties                                                   #

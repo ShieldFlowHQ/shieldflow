@@ -97,7 +97,11 @@ def create_app(
     _audit = audit or AuditLogger(config.audit_log_path)
     _metrics = metrics or MetricsCollector()
     _decision_log = decision_log or DecisionLog()
-    _anomaly = anomaly or AnomalyMonitor()
+    _anomaly = anomaly or AnomalyMonitor(
+        window_size=config.anomaly_window_size,
+        spike_threshold=config.anomaly_spike_threshold,
+        min_decisions=config.anomaly_min_decisions,
+    )
     _rate_limiter = RateLimiter(rpm=config.rate_limit_rpm)
     _start_time: float = time.monotonic()
 
