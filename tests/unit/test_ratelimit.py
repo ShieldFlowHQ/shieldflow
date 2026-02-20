@@ -234,3 +234,81 @@ class TestThreadSafety:
             assert count == rpm, (
                 f"{key}: expected exactly {rpm} successes, got {count}"
             )
+
+
+# ─── Memory management ───────────────────────────────────────────────────────
+
+
+class TestMemoryManagement:
+    def test_expired_key_removed_on_next_access(self) -> None:
+        """When a key's window expires and it is re-accessed, the empty deque
+        should be removed from the internal dict (lazy per-key cleanup)."""
+        import time as _time
+
+        rl = RateLimiter(rpm=5)
+        rl.check("key-a")
+        rl.check("key-b")
+        # Both keys should be in the dict
+        assert "key-a" in rl._windows
+        assert "key-b" in rl._windows
+
+        # Inject expired timestamps to simulate window expiry
+        expired = _time.monotonic() - _WINDOW_SECONDS - 1
+        with rl._lock:
+            rl._windows["key-a"].clear()
+            rl._windows["key-a"].append(expired)
+            rl._windows["key-b"].clear()
+            rl._windows["key-b"].append(expired)
+
+        # Accessing each key evicts the stale timestamp and removes the empty deque
+        rl.current_count("key-a")  # triggers _evict_locked → removes key-a
+        rl.current_count("key-b")  # triggers _evict_locked → removes key-b
+
+        assert "key-a" not in rl._windows
+        assert "key-b" not in rl._windows
+
+    def test_is_allowed_does_not_create_empty_entries(self) -> None:
+        """is_allowed should not create dict entries for unknown keys."""
+        rl = RateLimiter(rpm=5)
+        # Query a key that has never been seen
+        rl.is_allowed("never-seen")
+        # Should not create an entry in the windows dict
+        assert "never-seen" not in rl._windows
+
+    def test_current_count_does_not_create_empty_entries(self) -> None:
+        """current_count should not create dict entries for unknown keys."""
+        rl = RateLimiter(rpm=5)
+        # Query a key that has never been seen
+        rl.current_count("never-seen")
+        # Should not create an entry in the windows dict
+        assert "never-seen" not in rl._windows
+
+    def test_dict_does_not_grow_with_many_unique_keys(self) -> None:
+        """After many unique keys' windows expire, re-accessing them removes
+        the stale entries so the dict does not grow unbounded."""
+        import time as _time
+
+        rl = RateLimiter(rpm=5)
+        keys = [f"key-{i}" for i in range(50)]
+
+        # Add all keys with a current timestamp
+        for k in keys:
+            rl.check(k)
+        assert len(rl._windows) == 50
+
+        # Simulate all timestamps expiring
+        expired = _time.monotonic() - _WINDOW_SECONDS - 1
+        with rl._lock:
+            for k in keys:
+                dq = rl._windows.get(k)
+                if dq is not None:
+                    dq.clear()
+                    dq.append(expired)
+
+        # Re-accessing each expired key should evict the stale timestamp
+        # and remove the empty deque, keeping the dict from growing
+        for k in keys:
+            rl.current_count(k)  # triggers cleanup
+
+        # All expired keys must have been removed
+        assert len(rl._windows) == 0
