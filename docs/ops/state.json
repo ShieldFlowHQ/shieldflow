@@ -1,0 +1,40 @@
+{
+  "sprint": "W08",
+  "started": "2026-02-20",
+  "backlog": [
+    {
+      "id": "task-001",
+      "title": "Publish v0.2.1 to PyPI",
+      "priority": "P0",
+      "agent": "sf-engineering",
+      "created": "2026-02-20",
+      "description": "Publish the built v0.2.1 release to PyPI"
+    },
+    {
+      "id": "task-002", 
+      "title": "Auto-detect upstream LLM from OpenClaw",
+      "priority": "P0",
+      "agent": "sf-engineering",
+      "created": "2026-02-20",
+      "description": "Implement auto-detection of upstream LLM from OpenClaw config"
+    },
+    {
+      "id": "task-003",
+      "title": "Improve README for casual users",
+      "priority": "P1",
+      "agent": "sf-growth",
+      "created": "2026-02-20",
+      "description": "Rewrite README to be more accessible to non-technical users"
+    }
+  ],
+  "inProgress": [],
+  "completed": [],
+  "agents": {
+    "sf-engineering": {"capability": "engineering", "busy": false},
+    "sf-security": {"capability": "security", "busy": false},
+    "sf-growth": {"capability": "growth", "busy": false},
+    "sf-frontend-ui": {"capability": "frontend", "busy": false}
+  },
+  "cycleCount": 0,
+  "lastRun": null
+}
