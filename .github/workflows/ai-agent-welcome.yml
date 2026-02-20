@@ -1,0 +1,112 @@
+name: AI Agent Welcome
+
+on:
+  issues:
+    types: [opened, reopened]
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Welcome Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isPR = context.payload.pull_request !== undefined;
+            const issueNumber = context.payload.issue?.number || context.payload.pull_request?.number;
+            const sender = context.payload.sender.login;
+
+            // Skip if the sender is a known bot
+            const botNames = ['github-actions[bot]', 'dependabot[bot]', 'keeper[bot]', 'renovate[bot]'];
+            if (botNames.includes(sender)) {
+              console.log('Skipping welcome for bot:', sender);
+              return;
+            }
+
+            // Determine if this looks like an AI agent PR
+            let isAgentPR = false;
+            let agentName = '';
+            
+            if (isPR) {
+              const prTitle = context.payload.pull_request.title || '';
+              const prBody = context.payload.pull_request.body || '';
+              const agentIndicators = ['claude', 'cursor', 'github-copilot', 'openai', 'anthropic', 'agent', 'assistant', 'ai'];
+              
+              for (const indicator of agentIndicators) {
+                if (prTitle.toLowerCase().includes(indicator) || prBody.toLowerCase().includes(indicator)) {
+                  isAgentPR = true;
+                  agentName = indicator;
+                  break;
+                }
+              }
+            }
+
+            const welcomeMessage = isAgentPR 
+              ? `🤖 Welcome, AI Agent contributor!`
+              : `👋 Welcome!`;
+
+            const message = `${welcomeMessage}
+
+Thank you for your contribution to **ShieldFlow** - the open-source AI agent security framework built entirely by AI agents!
+
+## Quick Links
+
+- 📖 **Contributing Guide**: [CONTRIBUTING.md](https://github.com/ShieldFlowHQ/shieldflow/blob/main/CONTRIBUTING.md)
+- 📋 **PR Template**: Review our [PR template](https://github.com/ShieldFlowHQ/shieldflow/blob/main/.github/PULL_REQUEST_TEMPLATE.md) for best practices
+- 🔒 **Security Policy**: [SECURITY.md](https://github.com/ShieldFlowHQ/shieldflow/blob/main/SECURITY.md) for vulnerabilities
+- 📊 **Roadmap**: Check our [ROADMAP.md](https://github.com/ShieldFlowHQ/shieldflow/blob/main/ROADMAP.md) for priorities
+
+## Project Structure
+
+\`\`\`
+shieldflow/
+├── src/shieldflow/       # Core trust verification & sanitization
+├── tests/                # Test suites (unit, integration, red-team)
+├── docs/                 # Documentation
+├── frontend/             # Web UI components
+└── examples/             # Usage examples
+\`\`\`
+
+## Development Tips
+
+- **Tests**: Run \`pytest\` to verify changes
+- **Linting**: \`ruff check . && ruff format .\`
+- **Type checking**: \`mypy src/shieldflow/\`
+- **Good first issues**: Look for [\`good first issue\`](https://github.com/ShieldFlowHQ/shieldflow/labels/good%20first%20issue) labels
+
+## Need Help?
+
+- Check existing [issues](https://github.com/ShieldFlowHQ/shieldflow/issues) and [discussions](https://github.com/ShieldFlowHQ/shieldflow/discussions)
+- Review recent PRs for patterns
+- Read the [documentation](https://github.com/ShieldFlowHQ/shieldflow/tree/main/docs)
+
+We're excited to review your contribution! 🎉
+`;
+
+            // Post the comment
+            if (isPR) {
+              // For PRs, use the pull request comments API
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: message
+              });
+            } else {
+              // For issues, use the issues comments API
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: message
+              });
+            }
+            
+            console.log(`Welcome message posted to ${isPR ? 'PR' : 'Issue'} #${issueNumber}`);

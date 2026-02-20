@@ -50,24 +50,38 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
+
+from shieldflow.proxy.config import ProxyConfig
+
+# Type aliases for better readability
+DecisionType = Literal["BLOCK", "ALLOW", "CONFIRM"]
+TrustLevelType = Literal["NONE", "USER", "OWNER", "TOOL"]
 
 # ─── Configuration constants ──────────────────────────────────────────────────
 
-WINDOW_SIZE: int = 20
-"""Number of recent decisions to include in the rolling risk score."""
+# Default values (can be overridden via config)
+DEFAULT_WINDOW_SIZE: int = 20
+"""Default number of recent decisions to include in the rolling risk score."""
 
-SPIKE_THRESHOLD: float = 0.5
-"""Risk score above which a session is considered anomalous."""
+DEFAULT_SPIKE_THRESHOLD: float = 0.5
+"""Default risk score above which a session is considered anomalous."""
 
-MIN_DECISIONS: int = 3
-"""Minimum decisions in the window before spike detection activates."""
+DEFAULT_MIN_DECISIONS: int = 3
+"""Default minimum decisions in the window before spike detection activates."""
 
-MAX_SESSIONS: int = 1_000
-"""Maximum number of active sessions tracked simultaneously."""
+DEFAULT_MAX_SESSIONS: int = 1_000
+"""Default maximum number of active sessions tracked simultaneously."""
 
-TTL_SECONDS: int = 3_600
-"""Seconds of inactivity before a session's state is evicted."""
+DEFAULT_TTL_SECONDS: int = 3_600
+"""Default seconds of inactivity before a session's state is evicted."""
+
+# Module-level constants for backward compatibility (use configure() to override)
+WINDOW_SIZE: int = DEFAULT_WINDOW_SIZE
+SPIKE_THRESHOLD: float = DEFAULT_SPIKE_THRESHOLD
+MIN_DECISIONS: int = DEFAULT_MIN_DECISIONS
+MAX_SESSIONS: int = DEFAULT_MAX_SESSIONS
+TTL_SECONDS: int = DEFAULT_TTL_SECONDS
 
 _DECISION_WEIGHTS: dict[str, float] = {
     "BLOCK": 1.0,
@@ -84,8 +98,8 @@ class DecisionPoint:
     """A single recorded decision within a session window."""
 
     ts: float
-    decision: str  # "BLOCK" | "ALLOW" | "CONFIRM"
-    trigger_trust: str  # TrustLevel.name, e.g. "NONE", "OWNER"
+    decision: DecisionType
+    trigger_trust: TrustLevelType
     tool_name: str
 
 
@@ -94,7 +108,10 @@ class SessionState:
     """Rolling decision window + derived signals for one session."""
 
     session_id: str
-    window: deque[DecisionPoint] = field(default_factory=lambda: deque(maxlen=WINDOW_SIZE))
+    window_size: int = DEFAULT_WINDOW_SIZE
+    spike_threshold: float = DEFAULT_SPIKE_THRESHOLD
+    min_decisions: int = DEFAULT_MIN_DECISIONS
+    window: deque[DecisionPoint] = field(default_factory=lambda: deque(maxlen=DEFAULT_WINDOW_SIZE))
     spike_count: int = 0
     last_seen: float = field(default_factory=time.monotonic)
 
@@ -102,13 +119,16 @@ class SessionState:
     # Derived properties                                                   #
     # ------------------------------------------------------------------ #
 
-    def record(self, decision: str, trigger_trust: str, tool_name: str) -> None:
+    def record(self, decision: DecisionType, trigger_trust: TrustLevelType, tool_name: str) -> None:
         """Append a new decision point to the rolling window."""
         self.last_seen = time.monotonic()
+        # Ensure window has correct maxlen in case config changed
+        if self.window.maxlen != self.window_size:
+            self.window = deque(self.window, maxlen=self.window_size)
         self.window.append(
             DecisionPoint(
                 ts=self.last_seen,
-                decision=decision.upper(),
+                decision=decision,  # Already a DecisionType, no need to uppercase
                 trigger_trust=trigger_trust,
                 tool_name=tool_name,
             )
@@ -126,9 +146,9 @@ class SessionState:
 
     def is_anomalous(self) -> bool:
         """True when spike conditions are met (see module docstring)."""
-        if len(self.window) < MIN_DECISIONS:
+        if len(self.window) < self.min_decisions:
             return False
-        if self.risk_score() < SPIKE_THRESHOLD:
+        if self.risk_score() < self.spike_threshold:
             return False
         # Condition 3: the most recent decision from an untrusted source is BLOCK
         for point in reversed(self.window):
@@ -176,13 +196,19 @@ class AnomalyMonitor:
 
     def __init__(
         self,
-        max_sessions: int = MAX_SESSIONS,
-        ttl_seconds: int = TTL_SECONDS,
+        max_sessions: int = DEFAULT_MAX_SESSIONS,
+        ttl_seconds: int = DEFAULT_TTL_SECONDS,
+        window_size: int = DEFAULT_WINDOW_SIZE,
+        spike_threshold: float = DEFAULT_SPIKE_THRESHOLD,
+        min_decisions: int = DEFAULT_MIN_DECISIONS,
     ) -> None:
-        self._lock = threading.Lock()
+        self._lock: threading.Lock = threading.Lock()
         self._sessions: dict[str, SessionState] = {}
-        self._max_sessions = max_sessions
-        self._ttl_seconds = ttl_seconds
+        self._max_sessions: int = max_sessions
+        self._ttl_seconds: int = ttl_seconds
+        self._window_size: int = window_size
+        self._spike_threshold: float = spike_threshold
+        self._min_decisions: int = min_decisions
         self._total_spikes: int = 0
 
     # ------------------------------------------------------------------ #
@@ -192,8 +218,8 @@ class AnomalyMonitor:
     def record(
         self,
         session_id: str,
-        decision: str,
-        trigger_trust: str,
+        decision: DecisionType,
+        trigger_trust: TrustLevelType,
         tool_name: str = "unknown",
     ) -> None:
         """Record a validated tool-call decision for the given session.
@@ -305,7 +331,12 @@ class AnomalyMonitor:
         if session_id not in self._sessions:
             if len(self._sessions) >= self._max_sessions:
                 self._evict_oldest_locked()
-            self._sessions[session_id] = SessionState(session_id=session_id)
+            self._sessions[session_id] = SessionState(
+                session_id=session_id,
+                window_size=self._window_size,
+                spike_threshold=self._spike_threshold,
+                min_decisions=self._min_decisions,
+            )
         return self._sessions[session_id]
 
     def _evict_stale_locked(self) -> None:
@@ -322,3 +353,57 @@ class AnomalyMonitor:
             return
         oldest = min(self._sessions, key=lambda sid: self._sessions[sid].last_seen)
         del self._sessions[oldest]
+
+
+# ─── Configuration helpers ──────────────────────────────────────────────────
+
+
+def configure_from_proxy_config(config: ProxyConfig) -> AnomalyMonitor:
+    """Create an AnomalyMonitor from a ProxyConfig instance.
+
+    Args:
+        config: A ProxyConfig instance with anomaly detection settings.
+
+    Returns:
+        Configured AnomalyMonitor instance.
+    """
+    return AnomalyMonitor(
+        max_sessions=config.anomaly_max_sessions,
+        ttl_seconds=config.anomaly_ttl_seconds,
+        window_size=config.anomaly_window_size,
+        spike_threshold=config.anomaly_spike_threshold,
+        min_decisions=config.anomaly_min_decisions,
+    )
+
+
+def configure(
+    window_size: int | None = None,
+    spike_threshold: float | None = None,
+    min_decisions: int | None = None,
+    max_sessions: int | None = None,
+    ttl_seconds: int | None = None,
+) -> None:
+    """Configure module-level constants for backward compatibility.
+
+    This updates the default values used when AnomalyMonitor is created
+    without explicit parameters.
+
+    Args:
+        window_size: Number of recent decisions in rolling risk score.
+        spike_threshold: Risk score above which a session is anomalous.
+        min_decisions: Minimum decisions before spike detection activates.
+        max_sessions: Maximum number of tracked sessions.
+        ttl_seconds: Session TTL in seconds.
+    """
+    global WINDOW_SIZE, SPIKE_THRESHOLD, MIN_DECISIONS, MAX_SESSIONS, TTL_SECONDS
+
+    if window_size is not None:
+        WINDOW_SIZE = window_size
+    if spike_threshold is not None:
+        SPIKE_THRESHOLD = spike_threshold
+    if min_decisions is not None:
+        MIN_DECISIONS = min_decisions
+    if max_sessions is not None:
+        MAX_SESSIONS = max_sessions
+    if ttl_seconds is not None:
+        TTL_SECONDS = ttl_seconds
