@@ -683,3 +683,38 @@ to_messages (empty, preamble on/off, all block types, untrusted wrapping, tool_c
 - Remaining coverage gaps: `cli.py` (0%, 42 lines), `shieldflow.py` (49%, 18 lines) — lower priority (entry points)
 
 ---
+
+## Cycle 17 — 2026-02-20 12:00 AEDT
+
+### Focus
+Phase D.1 completion: test coverage for cli.py + shieldflow.py; PR template for D.3 community readiness.
+
+### Status at Cycle Start
+- **CI:** ✅ GREEN
+- **Tests:** 427 passing, 93% overall
+- **Gaps:** cli.py 0%, shieldflow.py 49%
+
+### Actions Taken
+
+#### 1. Tests — 26 new (453 total)
+- `test_cli.py` (13): Click CLI group, proxy/validate/init commands, all branches
+- `test_shieldflow_class.py` (13): ShieldFlow init (file/dict/Path/None/missing), create_session, create_context, validate_action, validate_actions
+
+#### 2. `.github/PULL_REQUEST_TEMPLATE.md`
+PR template with security impact section, testing checklist, documentation checklist.
+
+### Coverage Results
+
+| Module | Before | After |
+|---|---|---|
+| `cli.py` | 0% | **95%** |
+| `shieldflow.py` | 49% | **100%** |
+| **Overall** | 93% | **97%** |
+
+### Outcome
+- **453 tests pass**, 0 failures
+- **Phase D.1 complete** — all modules ≥ 95% coverage
+- Phase D.3 partially addressed (PR template added; SECURITY.md + issue templates already existed)
+- Next: Phase D.4 advanced security features, or stabilization
+
+---
