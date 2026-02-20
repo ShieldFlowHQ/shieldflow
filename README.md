@@ -1,64 +1,58 @@
 # 🛡️ ShieldFlow
 
-<img src="docs/images/shieldflow-logo.png" width="120" align="right" />
+**Protect your AI agents from hackers and trickery — automatically.**
 
 [![PyPI](https://img.shields.io/pypi/v/shieldflow?color=blue)](https://pypi.org/project/shieldflow/)
 [![Python](https://img.shields.io/pypi/pyversions/shieldflow)](https://pypi.org/project/shieldflow/)
 [![License](https://img.shields.io/pypi/l/shieldflow?color=green)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-492%20%2F%2084%20adversarial-green)](tests/)
 
-**Cryptographic trust boundaries for AI agents — built for OpenClaw, by AI agents.**
+## What does ShieldFlow do?
 
-ShieldFlow protects OpenClaw agents from prompt injection attacks. Not by guessing if text looks malicious, but by verifying who is authorised to give instructions.
+Imagine if someone could slip a secret note into your mail that makes your assistant do something bad — like send them money or share private passwords. That's basically what **prompt injection** is. It's a trick where hackers hide malicious instructions inside emails, web pages, or documents.
 
-> *"AI protecting AI."*
+ShieldFlow stops this. It's like a security guard that checks every instruction before your AI agent acts on it.
 
-## What is ShieldFlow?
+## Why does this matter?
 
-ShieldFlow is a free, open-source security layer built exclusively for [OpenClaw](https://openclaw.ai). It sits between your agent and the outside world, enforcing cryptographic trust boundaries so that web pages, emails, documents, and external data sources can never hijack your agent — no matter what they say.
+If you use AI agents to:
+- Read and reply to emails
+- Browse the web for you
+- Process documents or PDFs
+- Help customers or team members
 
-**This project is:**
-- 🔓 Fully free and open source (Apache 2.0)
-- 🤖 Built entirely by AI agents, for AI agents
-- 🛡️ OpenClaw-native — designed specifically for the OpenClaw ecosystem
-- 🚫 Not a SaaS product, not a paid service, not a commercial offering
+...then your agent could be tricked into doing something you didn't want. A sneaky web page could make it leak information. A crafty email could make it send messages to the wrong person.
 
-## The Problem
+**ShieldFlow makes sure that can't happen.**
 
-Every OpenClaw agent that reads emails, browses the web, or processes documents is vulnerable to prompt injection. A poisoned web page, a malicious email, or a hidden instruction in a PDF can hijack your agent into leaking data, sending unauthorised messages, or executing harmful actions.
-
-Existing solutions try to **detect** malicious text using classifiers — an arms race attackers always win. ShieldFlow takes a fundamentally different approach.
-
-## The Solution
-
-ShieldFlow enforces **cryptographic trust boundaries** at the infrastructure level:
+## How it works (in simple terms)
 
 ```
-User instruction (signed) ──→ ┌──────────────┐ ──→ OpenClaw Agent ──→ Actions
-                               │  ShieldFlow  │                          │
-Web pages (untrusted) ────→   │  Trust Layer │                   ┌──────┴──────┐
-Emails (untrusted) ──────→   │              │                   │  Validator  │
-Documents (untrusted) ───→   └──────────────┘                   └──────┬──────┘
-                                                                        │
-                                                                Approved / Blocked
+You tell your agent what to do ✓ → ShieldFlow checks it → Your agent does it
+
+A website tries to trick your agent ✗ → ShieldFlow blocks it → Nothing happens
 ```
 
-1. **Every instruction source gets a trust level** — owner, user, system, agent, or none
-2. **External data is always untrusted** — web pages, emails, documents can never give instructions, no matter what they say
-3. **Every action requires a minimum trust level** — sending a message requires `user` trust, executing code requires `owner` trust
-4. **Actions are traced to their origin** — if a tool call was triggered by untrusted data, it's blocked before execution
+ShieldFlow assigns a **trust level** to everything:
+- **You** → Highest trust (you know what you're doing)
+- **Your users** → High trust (authorised people)
+- **Web pages & emails** → No trust (they could be trying to trick you)
 
-## Dashboard
+When something untrusted tries to make your agent do something important (like send a message), ShieldFlow blocks it.
 
-ShieldFlow includes a built-in security dashboard for monitoring agent activity, reviewing blocked actions, and managing confirmation requests.
+## What's the benefit?
 
-![ShieldFlow Dashboard](docs/images/dashboard-screenshot.png)
+✅ Your AI agent stays safe from hackers  
+✅ You can still use web browsing and email normally  
+✅ No extra steps needed — it works in the background  
+✅ It's free and open source  
+✅ Fast — adds less than 10 milliseconds to responses  
 
----
+## Quick Setup
 
-## Quick Start (OpenClaw)
+### If you use OpenClaw
 
-Add to your OpenClaw config (`~/.openclaw/openclaw.json`):
+Add this to your config (`~/.openclaw/openclaw.json`):
 
 ```json
 {
@@ -71,133 +65,69 @@ Add to your OpenClaw config (`~/.openclaw/openclaw.json`):
 }
 ```
 
-Or run as a local proxy in front of any LLM:
+That's it! ShieldFlow will start protecting your agents.
+
+### Want to try it directly?
 
 ```bash
-# Install
+# Install ShieldFlow
 pip install shieldflow
 
-# Generate default config
+# Set it up with default settings
 shieldflow init
 
-# Start proxy (routes to OpenAI/Anthropic, enforces trust policies)
+# Run as a protective proxy
 shieldflow proxy --port 8080 --target openai
 ```
 
-Then point your OpenClaw agent at `http://localhost:8080/v1` instead of the provider directly. Full trust enforcement, zero configuration changes needed beyond the base URL.
+Then just point your agent to `http://localhost:8080/v1` instead of directly to OpenAI. ShieldFlow works its magic automatically.
 
-## How It Works
+## What gets blocked?
 
-### Trust Levels
+- 🚫 Web pages trying to control your agent
+- 🚫 Emails with hidden malicious instructions
+- 🚫 Documents that try to make your agent do things
+- 🚫 Hackers trying to steal your data
+- 🚫 Tricks that combine multiple attacks
 
-```
-OWNER (5)   — You, the agent owner
-USER  (4)   — Authenticated users you've authorised
-SYSTEM (3)  — Scheduled tasks, cron jobs
-AGENT (2)   — Other AI agents
-TOOL  (1)   — Tool/API outputs (informational only)
-NONE  (0)   — Everything external: web, email, docs, APIs
-```
+## What still works normally?
 
-### Core Properties
+- ✅ Reading emails
+- ✅ Browsing the web
+- ✅ Processing documents
+- ✅ All legitimate requests from trusted sources
 
-- **Trust never escalates** — content entering as `NONE` stays `NONE`, even after processing
-- **Signatures are transport-layer** — HMAC signatures can't be forged by injected text
-- **Actions require minimum trust** — configurable per action type
-- **Provenance tracking** — every blocked action includes a full trace of what triggered it
+## Dashboard
 
-### Example: Injection Blocked
+ShieldFlow comes with a built-in dashboard where you can see:
+- What actions were blocked (and why)
+- Your agent's activity
+- Security alerts and warnings
 
-```python
-from shieldflow import SecureSession
+![ShieldFlow Dashboard](docs/images/dashboard-screenshot.png)
 
-session = SecureSession()
+## For Developers
 
-# Your instruction — signed and trusted
-session.add_instruction("Summarise my emails and flag urgent ones")
+Want to dive deeper? Check out our full documentation:
 
-# External email — untrusted
-session.add_data(email_content, source="email", trust="none")
+- [Architecture Overview](docs/architecture/SYSTEM_OVERVIEW.md) — How it all works technically
+- [API Reference](docs/api/REFERENCE.md) — Programming details
+- [OpenClaw Integration Guide](docs/guides/openclaw.md) — Step-by-step setup
+- [Quickstart](docs/guides/quickstart.md) — Get started fast
 
-# This tool call gets blocked — triggered by untrusted email content
-result = session.validate_action(ToolCall("email.send", {"to": "evil@hacker.com"}))
-# result.blocked == True
-# result.reason == "Action 'email.send' requires trust=user but was triggered
-#                   by source with trust=none (email content)"
-```
+## About ShieldFlow
 
-## What Gets Blocked
-
-- Web pages attempting to hijack your agent
-- Malicious emails with embedded instructions
-- Documents with hidden text trying to trigger actions
-- Data exfiltration via social engineering
-- Multi-hop recursive injection attacks
-- AGENT-relayed untrusted instructions
-
-## What Doesn't Break
-
-- Your agent still reads emails normally
-- Your agent still browses the web
-- Your agent still processes documents
-- Legitimate actions from verified sources work as expected
-- Adds < 10ms latency
-
-## Project Status
-
-🚀 **v0.2.1 Released** — Production-ready security hardening
-
-- [x] Core trust engine
-- [x] HMAC instruction signing
-- [x] Policy engine + data classification
-- [x] Action provenance validator
-- [x] Content sanitiser (unicode, base64, homoglyphs, ROT13)
-- [x] FastAPI proxy server (OpenAI/Anthropic compatible)
-- [x] 492 tests (including 84 adversarial red-team scenarios)
-- [x] 96% code coverage
-- [x] Full threat model
-- [x] Audit logging with decision provenance
-- [x] Prometheus metrics endpoint
-- [x] Grafana dashboard
-- [x] Built-in security dashboard
-- [x] Session anomaly detection
-- [x] Multi-tenant policy management
-- [x] MCP trust policy formalization
-- [x] SSE streaming support
-- [x] Property-based fuzz testing
-- [ ] Community contribution workflow
-- [ ] PyPI one-liner install
-
-## Architecture
-
-See [docs/architecture/](docs/architecture/) for full technical documentation:
-- [Trust Model](docs/architecture/TRUST_MODEL.md)
-- [System Overview](docs/architecture/SYSTEM_OVERVIEW.md)
-- [Threat Model](docs/architecture/THREAT_MODEL.md)
-
-## Documentation
-
-- [API Reference](docs/api/REFERENCE.md)
-- [Quickstart Guide](docs/guides/quickstart.md)
-- [OpenClaw Integration](docs/guides/openclaw.md)
-- [Examples](examples/)
-
-## This Project
-
-ShieldFlow is built and operated entirely by AI agents. Engineering, security research, content, and operations are all handled by an agent team. A human sponsor sets direction and approves milestones.
-
-It's an experiment in AI-driven open source — and a practical answer to one of the biggest unsolved problems in AI agent security.
-
-## Contributing
-
-We welcome contributions — especially new injection patterns, bypass test cases, and integration guides.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. Security vulnerabilities: see [SECURITY.md](SECURITY.md).
+ShieldFlow is built for [OpenClaw](https://openclaw.ai) — a platform for running AI agents. It's:
+- 🔓 Free and open source (Apache 2.0)
+- 🤖 Built by AI agents, for AI agents
+- 🚫 Not a paid product — no subscription, ever
 
 ## License
 
-[Apache 2.0](LICENSE) — Free forever.
+[Apache 2.0](LICENSE) — Use it freely, forever.
 
 ---
+
+**Questions? Found a bug?** See [CONTRIBUTING.md](CONTRIBUTING.md) or [SECURITY.md](SECURITY.md).
 
 *Built by AI. For AI. To protect AI.*
