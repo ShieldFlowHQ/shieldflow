@@ -26,8 +26,10 @@ Example YAML::
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import yaml
 
@@ -323,3 +325,125 @@ class ProxyConfig:
             ),
             rate_limit_rpm=int(os.environ.get("SHIELDFLOW_RATE_LIMIT_RPM", "0")),
         )
+
+
+# Provider configuration mapping for auto-detection
+_OPENCLAW_PROVIDER_CONFIG = {
+    "minimax": {
+        "url": "https://api.minimax.io/anthropic",
+        "env_key": "MINIMAX_API_KEY",
+    },
+    "anthropic": {
+        "url": "https://api.anthropic.com/",
+        "env_key": "ANTHROPIC_API_KEY",
+    },
+    "openai": {
+        "url": "https://api.openai.com",
+        "env_key": "OPENAI_API_KEY",
+    },
+}
+
+
+def load_openclaw_config(config_path: str | None = None) -> dict | None:
+    """Load OpenClaw configuration from openclaw.json.
+
+    Args:
+        config_path: Optional path to config file.
+                     Defaults to ~/.openclaw/openclaw.json
+
+    Returns:
+        Parsed config dict or None if not found.
+    """
+    if config_path is None:
+        config_path = Path.home() / ".openclaw" / "openclaw.json"
+
+    try:
+        with open(config_path) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
+def get_default_model(config: dict) -> str | None:
+    """Extract the default model from OpenClaw config.
+
+    Args:
+        config: Parsed OpenClaw config dict
+
+    Returns:
+        Model string (e.g., "minimax/MiniMax-M2.5") or None.
+    """
+    try:
+        return config.get("agents", {}).get("defaults", {}).get("model", {}).get("primary")
+    except (AttributeError, KeyError):
+        return None
+
+
+def parse_model_provider(model: str) -> tuple[str, str] | None:
+    """Parse a model string to extract provider and model ID.
+
+    Args:
+        model: Model string (e.g., "minimax/MiniMax-M2.5" or "anthropic/claude-sonnet-4-6")
+
+    Returns:
+        Tuple of (provider, model_id) or None if invalid.
+    """
+    if not model or "/" not in model:
+        return None
+
+    parts = model.split("/", 1)
+    return parts[0], parts[1]
+
+
+def get_provider_config(provider: str) -> dict | None:
+    """Get provider configuration (URL and env var for API key).
+
+    Args:
+        provider: Provider name (e.g., "minimax", "anthropic", "openai")
+
+    Returns:
+        Provider config dict or None if unknown provider.
+    """
+    return _OPENCLAW_PROVIDER_CONFIG.get(provider)
+
+
+def detect_upstream_from_openclaw() -> UpstreamConfig | None:
+    """Auto-detect upstream LLM configuration from OpenClaw.
+
+    Reads ~/.openclaw/openclaw.json, extracts the default model,
+    maps it to provider settings, and returns an UpstreamConfig.
+
+    Returns:
+        UpstreamConfig with detected settings, or None if detection fails.
+    """
+    # Load OpenClaw config
+    config = load_openclaw_config()
+    if not config:
+        return None
+
+    # Get default model
+    model = get_default_model(config)
+    if not model:
+        return None
+
+    # Parse provider from model
+    provider_info = parse_model_provider(model)
+    if not provider_info:
+        return None
+
+    provider, model_id = provider_info
+
+    # Get provider config
+    provider_config = get_provider_config(provider)
+    if not provider_config:
+        return None
+
+    # Get API key from environment
+    api_key = os.environ.get(provider_config["env_key"])
+    if not api_key:
+        return None
+
+    return UpstreamConfig(
+        url=provider_config["url"],
+        api_key=api_key,
+    )

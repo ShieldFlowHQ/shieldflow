@@ -12,12 +12,50 @@ def main() -> None:
 
 @main.command()
 @click.option("--port", default=8080, help="Port to listen on")
-@click.option("--target", default="openai", help="Target LLM provider (openai, anthropic)")
+@click.option("--target", default=None, help="Target LLM provider (openai, anthropic)")
 @click.option("--config", default="shieldflow.yaml", help="Config file path")
-def proxy(port: int, target: str, config: str) -> None:
+@click.option("--auto-detect/--no-auto-detect", default=True, help="Auto-detect upstream from OpenClaw config")
+def proxy(port: int, target: str | None, config: str, auto_detect: bool) -> None:
     """Start ShieldFlow as an LLM proxy."""
+    from shieldflow.proxy.config import (
+        ProxyConfig,
+        detect_upstream_from_openclaw,
+        get_provider_config,
+    )
+
+    # Try to load from YAML config first
+    from pathlib import Path
+
+    config_path = Path(config)
+    if config_path.exists():
+        proxy_config = ProxyConfig.from_yaml(config)
+    else:
+        proxy_config = ProxyConfig.from_env()
+
+    # Override port from CLI
+    proxy_config.port = port
+
+    # Target to URL mapping
+    target_urls = {
+        "openai": "https://api.openai.com",
+        "anthropic": "https://api.anthropic.com/",
+        "minimax": "https://api.minimax.io/anthropic",
+    }
+
+    # Handle target option - explicit override
+    if target and target in target_urls:
+        proxy_config.upstream.url = target_urls[target]
+    # Try auto-detection from OpenClaw config (only if no explicit target)
+    elif auto_detect:
+        upstream = detect_upstream_from_openclaw()
+        if upstream:
+            proxy_config.upstream = upstream
+            click.echo(f"✅ Auto-detected upstream from OpenClaw config: {upstream.url}")
+        else:
+            click.echo("⚠️ Could not auto-detect upstream from OpenClaw config, using defaults")
+
     click.echo(f"🛡️ ShieldFlow proxy starting on port {port}")
-    click.echo(f"   Target: {target}")
+    click.echo(f"   Upstream: {proxy_config.upstream.url}")
     click.echo(f"   Config: {config}")
     click.echo("   Status: Not yet implemented — coming soon!")
 
