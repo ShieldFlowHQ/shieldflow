@@ -172,6 +172,26 @@ def create_app(
         return token
 
     # ------------------------------------------------------------------ #
+    # Helper: session ID validation                                       #
+    # ------------------------------------------------------------------ #
+
+    def _validate_session_id(session_id: str | None) -> str | None:
+        """Validate and normalize session ID from client.
+        
+        Prevents session-based attacks by:
+        - Enforcing alphanumeric + hyphen/underscore only
+        - Limiting length (16-64 chars)
+        - Normalizing to lowercase
+        """
+        if not session_id:
+            return None
+        # Only allow alphanumeric, hyphens, underscores
+        import re
+        if not re.match(r"^[a-zA-Z0-9_-]{16,64}$", session_id):
+            return None
+        return session_id.lower()
+
+    # ------------------------------------------------------------------ #
     # Helper: request guardrails                                           #
     # ------------------------------------------------------------------ #
 
@@ -777,9 +797,11 @@ def create_app(
         t_validator, t_limiter, t_trust = _resolve_tenant(rate_key)
 
         request_id = str(uuid.uuid4())
-        # Optional multi-turn session tracking.  Callers supply this header to
+        # Optional multi-turn session tracking. Callers supply this header to
         # enable anomaly monitoring across multiple requests in the same session.
-        session_id: str | None = request.headers.get("X-ShieldFlow-Session-ID") or None
+        # Session IDs are validated to prevent injection attacks.
+        raw_session_id = request.headers.get("X-ShieldFlow-Session-ID")
+        session_id = _validate_session_id(raw_session_id)
 
         try:
             body: dict[str, Any] = await request.json()
