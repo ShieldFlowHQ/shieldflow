@@ -31,12 +31,15 @@ Acceptance criteria (Issue #8)
 
 from __future__ import annotations
 
-import html as _html
+import json
+import os
+import sqlite3
 import threading
 import uuid
 from collections import deque
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Query
@@ -100,11 +103,100 @@ class DecisionLog:
 
     Stores up to *maxlen* entries (default 200).  Oldest entries are
     silently dropped when the buffer is full.
+    
+    Optionally persists to SQLite for survival across restarts.
     """
 
-    def __init__(self, maxlen: int = 200) -> None:
+    def __init__(self, maxlen: int = 200, persist_path: str | None = None) -> None:
         self._lock = threading.Lock()
         self._entries: deque[DecisionEntry] = deque(maxlen=maxlen)
+        self._persist_path = persist_path
+        if persist_path:
+            self._init_db()
+            self._load_recent(maxlen)
+
+    def _init_db(self) -> None:
+        """Initialize SQLite database for persistence."""
+        conn = sqlite3.connect(self._persist_path)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS decisions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entry_id TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                request_id TEXT NOT NULL,
+                tool_name TEXT NOT NULL,
+                decision TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                trigger_source TEXT,
+                trigger_trust TEXT NOT NULL,
+                matched_patterns TEXT NOT NULL,
+                normalisation_flags TEXT NOT NULL,
+                data_classification TEXT
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON decisions(timestamp DESC)")
+        conn.close()
+
+    def _load_recent(self, maxlen: int) -> None:
+        """Load recent decisions from SQLite."""
+        if not self._persist_path:
+            return
+        try:
+            conn = sqlite3.connect(self._persist_path)
+            cursor = conn.execute(
+                "SELECT * FROM decisions ORDER BY timestamp DESC LIMIT ?",
+                (maxlen,)
+            )
+            rows = cursor.fetchall()
+            conn.close()
+            with self._lock:
+                for row in reversed(rows):
+                    entry = DecisionEntry(
+                        entry_id=row[1],
+                        timestamp=row[2],
+                        request_id=row[3],
+                        tool_name=row[4],
+                        decision=row[5],
+                        reason=row[6],
+                        trigger_source=row[7],
+                        trigger_trust=row[8],
+                        matched_patterns=json.loads(row[9]),
+                        normalisation_flags=json.loads(row[10]),
+                        data_classification=row[11],
+                    )
+                    self._entries.append(entry)
+        except Exception:
+            pass  # Start fresh if persistence fails
+
+    def _persist(self, entry: DecisionEntry) -> None:
+        """Save a single decision to SQLite."""
+        if not self._persist_path:
+            return
+        try:
+            conn = sqlite3.connect(self._persist_path)
+            conn.execute(
+                """INSERT INTO decisions 
+                   (entry_id, timestamp, request_id, tool_name, decision, reason,
+                    trigger_source, trigger_trust, matched_patterns, normalisation_flags, data_classification)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    entry.entry_id,
+                    entry.timestamp,
+                    entry.request_id,
+                    entry.tool_name,
+                    entry.decision,
+                    entry.reason,
+                    entry.trigger_source,
+                    entry.trigger_trust,
+                    json.dumps(entry.matched_patterns),
+                    json.dumps(entry.normalisation_flags),
+                    entry.data_classification,
+                ),
+            )
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass  # Non-fatal if persistence fails
 
     def record(
         self,
@@ -146,6 +238,7 @@ class DecisionLog:
         )
         with self._lock:
             self._entries.append(entry)
+        self._persist(entry)
 
     def recent(
         self,

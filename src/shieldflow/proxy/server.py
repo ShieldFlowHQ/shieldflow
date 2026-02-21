@@ -115,7 +115,12 @@ def create_app(
 
     _audit = audit or AuditLogger(config.audit_log_path)
     _metrics = metrics or MetricsCollector()
-    _decision_log = decision_log or DecisionLog()
+    
+    # Decision log persistence - use SHIELDFLOW_DATA_DIR env var or default
+    data_dir = os.environ.get("SHIELDFLOW_DATA_DIR", "/tmp/shieldflow")
+    os.makedirs(data_dir, exist_ok=True)
+    decision_db = os.path.join(data_dir, "decisions.db")
+    _decision_log = decision_log or DecisionLog(persist_path=decision_db)
     _anomaly = anomaly or AnomalyMonitor()
     _rate_limiter = RateLimiter(rpm=config.rate_limit_rpm)
     _start_time: float = time.monotonic()
