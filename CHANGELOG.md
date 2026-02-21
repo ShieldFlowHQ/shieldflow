@@ -7,6 +7,44 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.2.2] — 2026-02-21
+
+Autonomous agent release. Added automated CI/CD, frontend enhancements, and backend improvements.
+
+### Added
+- Multi-tenant proxy configuration support with per-tenant policies and rate limits
+- Decision log persistence to SQLite
+- Integration tests for proxy endpoints
+- Performance benchmarks in `benchmarks/` directory
+- Structured logging utilities in `src/shieldflow/logging_utils.py`
+- Session ID validation for security
+- Request ID propagation for distributed tracing
+- Structured exception types
+
+### Security
+- Session ID validation (alphanumeric, length limits)
+- API key comparison now uses constant-time comparison (prevents timing attacks)
+- Config __repr__ now masks sensitive fields
+- API key stored in memory only (not localStorage)
+
+### Frontend
+- Dark/light theme toggle
+- Keyboard shortcuts (? for help, r to refresh, 1/2/3 to switch views)
+- Focus trapping in modals
+- Config export/import
+- Loading states for policy operations
+- Error boundary for graceful failures
+- Manual refresh button
+- Delete confirmation dialog
+- Search/filter for decisions table
+
+### Fixed
+- Memory leak in interval cleanup
+- Mock data timestamps now fixed
+- Duplicate INJECTION_PATTERNS in validator.py
+
+---
+
 ## [0.2.1] — 2026-02-20
 
 Property-based testing release. Added comprehensive Hypothesis tests for the
