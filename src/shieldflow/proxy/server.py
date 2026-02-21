@@ -45,6 +45,7 @@ Response headers added by the proxy:
 
 from __future__ import annotations
 
+import hmac
 import json
 import signal
 import sys
@@ -163,7 +164,8 @@ def create_app(
             )
 
         token = auth_header[len("Bearer ") :]
-        if token not in config.api_keys:
+        # Use constant-time comparison to prevent timing attacks
+        if not any(hmac.compare_digest(token, key) for key in config.api_keys):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid Bearer token",
