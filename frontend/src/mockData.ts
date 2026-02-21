@@ -1,9 +1,11 @@
 import type { DashboardData } from './types'
 
-const now = new Date()
+// Fixed reference timestamp for demo data - always shows same timestamps
+// This ensures the mock data doesn't "regenerate" on each page load
+const DEMO_REFERENCE_DATE = new Date('2025-01-15T10:30:00.000Z')
 
 const minusMinutes = (minutes: number): string =>
-  new Date(now.getTime() - minutes * 60_000).toISOString()
+  new Date(DEMO_REFERENCE_DATE.getTime() - minutes * 60_000).toISOString()
 
 export const mockDashboardData: DashboardData = {
   source: 'demo-mock',
@@ -62,7 +64,7 @@ export const mockDashboardData: DashboardData = {
       data_classification: 'internal',
     },
     {
-      entry_id: 'c11ce00002',
+      entry_id: 'c11ce00005',
       timestamp: minusMinutes(6),
       request_id: 'f6ff4454-8848-4b04-94dd-c6a2241a6c4d',
       tool_name: 'message.send',
@@ -75,7 +77,7 @@ export const mockDashboardData: DashboardData = {
       data_classification: 'confidential',
     },
     {
-      entry_id: 'c11ce00003',
+      entry_id: 'c11ce00006',
       timestamp: minusMinutes(10),
       request_id: 'db076d09-13b5-4634-80a8-909fbeac38ba',
       tool_name: 'file.read',

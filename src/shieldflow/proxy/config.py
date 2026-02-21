@@ -32,8 +32,104 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from shieldflow.core.trust import TrustLevel
+
+
+# ─── Pydantic Models for YAML Validation ─────────────────────────────────────
+
+
+class UpstreamConfigModel(BaseModel):
+    """Pydantic model for upstream configuration validation."""
+
+    url: str = Field(default="https://api.openai.com", min_length=1)
+    api_key: str = Field(default="")
+    timeout: float = Field(default=60.0, gt=0)
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("upstream.url must start with http:// or https://")
+        return v
+
+
+class MCPServerPolicyModel(BaseModel):
+    """Pydantic model for MCP server policy validation."""
+
+    server_trust: str = Field(default="none")
+    resource_trust: str = Field(default="none")
+    verified: bool = Field(default=False)
+    allowed_tools: list[str] | None = Field(default=None)
+    label: str | None = Field(default=None)
+
+    @field_validator("server_trust", "resource_trust")
+    @classmethod
+    def validate_trust_level(cls, v: str) -> str:
+        valid_levels = {"none", "user", "system", "agent", "tool"}
+        if v.lower() not in valid_levels:
+            raise ValueError(f"Trust level must be one of: {', '.join(valid_levels)}")
+        return v.lower()
+
+
+class TenantConfigModel(BaseModel):
+    """Pydantic model for per-tenant configuration validation."""
+
+    policy_path: str | None = Field(default=None)
+    rate_limit_rpm: int | None = Field(default=None)
+    default_trust: str | None = Field(default=None)
+    label: str | None = Field(default=None)
+
+    @field_validator("rate_limit_rpm")
+    @classmethod
+    def validate_rpm(cls, v: int | None) -> int | None:
+        if v is not None and v < 0:
+            raise ValueError("rate_limit_rpm must be >= 0")
+        return v
+
+    @field_validator("default_trust")
+    @classmethod
+    def validate_trust(cls, v: str | None) -> str | None:
+        if v is not None:
+            valid_levels = {"none", "user", "system", "agent", "tool"}
+            if v.lower() not in valid_levels:
+                raise ValueError(f"default_trust must be one of: {', '.join(valid_levels)}")
+        return v
+
+
+class ProxyConfigModel(BaseModel):
+    """Pydantic model for full proxy configuration validation."""
+
+    upstream: UpstreamConfigModel = Field(default_factory=UpstreamConfigModel)
+    api_keys: list[str] = Field(default_factory=list)
+    policy_path: str | None = Field(default=None)
+    audit_log_path: str | None = Field(default=None)
+    default_trust: str = Field(default="user")
+    host: str = Field(default="0.0.0.0")
+    port: int = Field(default=8080, ge=1, le=65535)
+
+    mcp_servers: dict[str, MCPServerPolicyModel] = Field(default_factory=dict)
+    tenants: dict[str, TenantConfigModel] = Field(default_factory=dict)
+
+    max_request_body_bytes: int = Field(default=1_048_576, ge=0)
+    max_messages_per_request: int = Field(default=500, ge=0)
+    rate_limit_rpm: int = Field(default=0, ge=0)
+
+    @field_validator("default_trust")
+    @classmethod
+    def validate_default_trust(cls, v: str) -> str:
+        valid_levels = {"none", "user", "system", "agent", "tool"}
+        if v.lower() not in valid_levels:
+            raise ValueError(f"default_trust must be one of: {', '.join(valid_levels)}")
+        return v.lower()
+
+    @field_validator("host")
+    @classmethod
+    def validate_host(cls, v: str) -> str:
+        if not v:
+            raise ValueError("host cannot be empty")
+        return v
 
 
 @dataclass
@@ -212,16 +308,22 @@ class ProxyConfig:
 
     @classmethod
     def from_yaml(cls, path: str) -> ProxyConfig:
-        """Load configuration from a YAML file.
+        """Load configuration from a YAML file with validation.
 
         Args:
             path: Path to the YAML configuration file.
 
         Returns:
             A configured ProxyConfig instance.
+
+        Raises:
+            ValidationError: If the YAML configuration is invalid.
         """
         with open(path) as f:
             data = yaml.safe_load(f) or {}
+
+        # Validate using pydantic model - raises ValidationError on invalid config
+        validated = ProxyConfigModel.model_validate(data)
 
         upstream_data = data.get("upstream", {})
         upstream = UpstreamConfig(

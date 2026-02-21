@@ -5,6 +5,8 @@
 [![PyPI](https://img.shields.io/pypi/v/shieldflow?color=blue)](https://pypi.org/project/shieldflow/)
 [![Python](https://img.shields.io/pypi/pyversions/shieldflow)](https://pypi.org/project/shieldflow/)
 [![License](https://img.shields.io/pypi/l/shieldflow?color=green)](LICENSE)
+[![CI](https://github.com/shieldflow/shieldflow/actions/workflows/ci.yml/badge.svg)](https://github.com/shieldflow/shieldflow/actions/workflows/ci.yml)
+[![Release](https://github.com/shieldflow/shieldflow/actions/workflows/release.yml/badge.svg)](https://github.com/shieldflow/shieldflow/actions/workflows/release.yml)
 
 ---
 

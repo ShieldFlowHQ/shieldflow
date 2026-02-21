@@ -118,6 +118,33 @@ class RateLimiter:
             self._evict_locked(key)
             return len(self._windows[key])
 
+    def remaining(self, key: str) -> int:
+        """Number of requests remaining for *key* in the current window.
+
+        Returns 0 if over limit, otherwise returns (rpm - current_count).
+        """
+        if self._rpm == 0:
+            return 0  # Unlimited, but we return 0 for consistency
+        with self._lock:
+            self._evict_locked(key)
+            return max(0, self._rpm - len(self._windows[key]))
+
+    def reset_time(self, key: str) -> int:
+        """Unix timestamp when the rate limit window will reset for *key*.
+
+        Returns 0 if rate limiting is disabled or the key has no requests.
+        """
+        if self._rpm == 0:
+            return 0
+        with self._lock:
+            self._evict_locked(key)
+            dq = self._windows.get(key)
+            if not dq:
+                return 0
+            # Window resets when the oldest request expires (60s from that request)
+            oldest = dq[0] if dq else 0
+            return int(oldest + _WINDOW_SECONDS)
+
     def reset(self, key: str) -> None:
         """Clear all recorded requests for *key* (testing / admin use)."""
         with self._lock:

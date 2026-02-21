@@ -43,8 +43,10 @@ Example log entries (one JSON object per line)::
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from datetime import UTC, datetime
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import IO, Any
 
@@ -52,34 +54,67 @@ from typing import IO, Any
 #: backward-incompatible way so downstream consumers can version-gate.
 AUDIT_SCHEMA_VERSION = "2"
 
+# Default rotation settings
+DEFAULT_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
+DEFAULT_BACKUP_COUNT = 5
+
 
 class AuditLogger:
-    """Append-only JSONL audit logger.
+    """Append-only JSONL audit logger with automatic rotation.
 
     Writes one JSON object per line to a file, or to stderr when no
     path is configured (useful for container deployments where stderr
     is collected by the orchestrator).
+
+    Uses RotatingFileHandler for automatic log rotation when the file
+    reaches a maximum size. Old rotated files are kept as backups.
 
     The logger is thread-safe for line-buffered writes but does not
     support concurrent file rotation. Use an external log shipper
     (logrotate, vector, fluentd) for production log management.
     """
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self,
+        path: str | None = None,
+        max_bytes: int = DEFAULT_MAX_BYTES,
+        backup_count: int = DEFAULT_BACKUP_COUNT,
+    ) -> None:
         """Initialise the audit logger.
 
         Args:
             path: Absolute or relative path to the audit log file.
                   Directory will be created if it does not exist.
                   Pass ``None`` to write to stderr.
+            max_bytes: Maximum size in bytes before rotating the log file.
+                       Default: 10 MB. Set to 0 to disable rotation.
+            backup_count: Number of backup files to keep when rotating.
+                          Default: 5. Set to 0 to keep all backups.
         """
         self._path = path
+        self._max_bytes = max_bytes
+        self._backup_count = backup_count
         self._file: IO[str] | None = None
+        self._logger: logging.Logger | None = None
 
         if path:
             Path(path).parent.mkdir(parents=True, exist_ok=True)
-            # Line-buffered (buffering=1) so each record is flushed immediately
-            self._file = open(path, "a", buffering=1, encoding="utf-8")
+            if max_bytes > 0:
+                # Use RotatingFileHandler for automatic rotation
+                self._logger = logging.getLogger(f"shieldflow.audit.{id(self)}")
+                self._logger.setLevel(logging.INFO)
+                self._logger.handlers.clear()
+                handler = RotatingFileHandler(
+                    path,
+                    maxBytes=max_bytes,
+                    backupCount=backup_count,
+                    encoding="utf-8",
+                )
+                handler.setFormatter(logging.Formatter("%(message)s"))
+                self._logger.addHandler(handler)
+            else:
+                # Line-buffered (buffering=1) so each record is flushed immediately
+                self._file = open(path, "a", buffering=1, encoding="utf-8")
 
     # ------------------------------------------------------------------ #
     # Public logging methods                                               #
@@ -287,7 +322,9 @@ class AuditLogger:
         """
         full = {"schema_version": AUDIT_SCHEMA_VERSION, **record}
         line = json.dumps(full, default=str, ensure_ascii=False)
-        if self._file:
+        if self._logger:
+            self._logger.info(line)
+        elif self._file:
             self._file.write(line + "\n")
         else:
             print(line, file=sys.stderr)

@@ -46,6 +46,8 @@ Response headers added by the proxy:
 from __future__ import annotations
 
 import json
+import signal
+import sys
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -65,6 +67,24 @@ from shieldflow.proxy.config import ProxyConfig, TenantConfig
 from shieldflow.proxy.dashboard import DecisionLog, add_dashboard_routes
 from shieldflow.proxy.metrics import MetricsCollector
 from shieldflow.proxy.ratelimit import RateLimiter
+
+
+# Global shutdown event for graceful handling
+_shutdown_event: signal.Event | None = None
+_shutdown_timeout: float = 30.0  # seconds to wait for in-flight requests
+
+
+def _create_shutdown_handler(ready_event: signal.Event | None = None):
+    """Create a shutdown handler that sets the shutdown event."""
+    def shutdown_handler(signum, frame):
+        nonlocal _shutdown_event
+        if _shutdown_event:
+            _shutdown_event.set()
+            print(f"\n🚪 Received signal {signum}, initiating graceful shutdown...")
+            print(f"   Waiting up to {_shutdown_timeout}s for in-flight requests to complete...")
+            if ready_event:
+                ready_event.clear()
+    return shutdown_handler
 
 
 def create_app(
@@ -883,6 +903,12 @@ def create_app(
             tenant_label = config.tenants[rate_key].label or rate_key[:8] + "..."
             response_headers["X-ShieldFlow-Tenant"] = tenant_label
 
+        # Emit rate limit headers if rate limiting is enabled.
+        if t_limiter.rpm > 0:
+            rl_key = rate_key or (request.client.host if request.client else "unknown")
+            response_headers["X-RateLimit-Remaining"] = str(t_limiter.remaining(rl_key))
+            response_headers["X-RateLimit-Reset"] = str(t_limiter.reset_time(rl_key))
+
         # Emit session-level anomaly signals when session_id is present.
         if session_id:
             risk = _anomaly.risk_score(session_id)
@@ -911,13 +937,15 @@ def create_app(
         }
 
     @app.get("/health/ready")
-    async def health_ready() -> JSONResponse:
+    async def health_ready(request: Request) -> JSONResponse:
         """Readiness probe — returns 200 when the proxy can serve traffic.
 
         Checks:
           * **upstream** — upstream URL and API key are configured.
           * **auth** — API-key list is consistent (open mode is valid).
           * **policy** — policy engine is loaded and operational.
+          * **upstream_connectivity** — (optional) actual reachability check
+            to the upstream URL. Pass ``?check_upstream=true`` to enable.
 
         Returns HTTP 200 with ``status: ready`` on success, or HTTP 503
         with ``status: not_ready`` and per-check detail on failure.
@@ -944,6 +972,32 @@ def create_app(
 
         # 3. Policy engine — always loaded in create_app(); just confirm
         checks["policy"] = "ok"
+
+        # 4. Optional upstream connectivity check
+        check_upstream = request.query_params.get("check_upstream", "false").lower() == "true"
+        if check_upstream and config.upstream.url and config.upstream.api_key:
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    # Send a minimal request to check upstream is reachable
+                    # Use models list endpoint as a lightweight probe
+                    probe_url = f"{config.upstream.url}/v1/models"
+                    resp = await client.get(
+                        probe_url,
+                        headers={"Authorization": f"Bearer {config.upstream.api_key}"},
+                    )
+                    if resp.status_code < 500:
+                        checks["upstream_connectivity"] = "ok"
+                    else:
+                        checks["upstream_connectivity"] = f"error_{resp.status_code}"
+                        failures.append("upstream_connectivity")
+            except httpx.TimeoutException:
+                checks["upstream_connectivity"] = "timeout"
+                failures.append("upstream_connectivity")
+            except httpx.RequestError as exc:
+                checks["upstream_connectivity"] = f"error_{type(exc).__name__}"
+                failures.append("upstream_connectivity")
+        elif check_upstream:
+            checks["upstream_connectivity"] = "skipped_missing_config"
 
         if failures:
             return JSONResponse(
@@ -1043,3 +1097,59 @@ def create_app(
         return JSONResponse(snapshot, headers={"Cache-Control": "no-store"})
 
     return app
+
+
+def run_server(
+    config: ProxyConfig,
+    host: str = "0.0.0.0",
+    port: int = 8080,
+    shutdown_timeout: float = 30.0,
+) -> None:
+    """Run the ShieldFlow proxy server with graceful shutdown handling.
+
+    Args:
+        config: Proxy configuration.
+        host: Host to bind to.
+        port: Port to listen on.
+        shutdown_timeout: Seconds to wait for in-flight requests on shutdown.
+    """
+    import uvicorn
+    from threading import Event
+
+    global _shutdown_event, _shutdown_timeout
+    _shutdown_timeout = shutdown_timeout
+
+    # Create shutdown event
+    shutdown_event = Event()
+    _shutdown_event = shutdown_event
+
+    # Register signal handlers
+    signal.signal(signal.SIGTERM, _create_shutdown_handler())
+    signal.signal(signal.SIGINT, _create_shutdown_handler())
+
+    # Create the app
+    app = create_app(config)
+
+    # Add graceful shutdown endpoint and lifespan
+    @app.on_event("shutdown")
+    async def shutdown_event_handler():
+        """Handle graceful shutdown."""
+        shutdown_event.set()
+        # Give time for in-flight requests to complete
+        await asyncio.sleep(shutdown_timeout)
+        # Flush audit logs
+        if hasattr(app.state, "audit"):
+            app.state.audit.close()
+        print("✅ Graceful shutdown complete")
+
+    print(f"🛡️ ShieldFlow proxy starting on {host}:{port}")
+    print(f"   Upstream: {config.upstream.url}")
+    print(f"   Timeout: {config.upstream.timeout}s")
+    print("   Press Ctrl+C or send SIGTERM to stop gracefully")
+
+    # Run server
+    uvicorn.run(app, host=host, port=port, log_level="info")
+
+
+# Need asyncio for shutdown handling
+import asyncio

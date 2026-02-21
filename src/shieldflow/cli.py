@@ -14,8 +14,9 @@ def main() -> None:
 @click.option("--port", default=8080, help="Port to listen on")
 @click.option("--target", default=None, help="Target LLM provider (openai, anthropic)")
 @click.option("--config", default="shieldflow.yaml", help="Config file path")
+@click.option("--timeout", default=None, type=float, help="Upstream request timeout in seconds")
 @click.option("--auto-detect/--no-auto-detect", default=True, help="Auto-detect upstream from OpenClaw config")
-def proxy(port: int, target: str | None, config: str, auto_detect: bool) -> None:
+def proxy(port: int, target: str | None, config: str, timeout: float | None, auto_detect: bool) -> None:
     """Start ShieldFlow as an LLM proxy."""
     from shieldflow.proxy.config import (
         ProxyConfig,
@@ -34,6 +35,11 @@ def proxy(port: int, target: str | None, config: str, auto_detect: bool) -> None
 
     # Override port from CLI
     proxy_config.port = port
+
+    # Override timeout from CLI if provided
+    if timeout is not None:
+        proxy_config.upstream.timeout = timeout
+        click.echo(f"   Timeout: {timeout}s (overridden via CLI)")
 
     # Target to URL mapping
     target_urls = {

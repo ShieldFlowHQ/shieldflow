@@ -179,10 +179,10 @@ class AnomalyMonitor:
         max_sessions: int = MAX_SESSIONS,
         ttl_seconds: int = TTL_SECONDS,
     ) -> None:
-        self._lock = threading.Lock()
+        self._lock: threading.Lock = threading.Lock()
         self._sessions: dict[str, SessionState] = {}
-        self._max_sessions = max_sessions
-        self._ttl_seconds = ttl_seconds
+        self._max_sessions: int = max_sessions
+        self._ttl_seconds: int = ttl_seconds
         self._total_spikes: int = 0
 
     # ------------------------------------------------------------------ #

@@ -147,13 +147,37 @@ const simulateDelay = (ms: number = 300) => new Promise(resolve => setTimeout(re
 const CONFIG_KEY = 'shieldflow_config'
 const ONBOARDING_KEY = 'shieldflow_onboarding'
 
-// Load config from localStorage or return default
+// In-memory storage for sensitive data (API key)
+// This is NOT persisted to localStorage for security
+let inMemoryApiKey = ''
+
+// Store API key in memory only (not localStorage)
+export const setInMemoryApiKey = (apiKey: string): void => {
+  inMemoryApiKey = apiKey
+}
+
+// Retrieve API key from memory
+export const getInMemoryApiKey = (): string => {
+  return inMemoryApiKey
+}
+
+// Clear API key from memory (e.g., on logout)
+export const clearInMemoryApiKey = (): void => {
+  inMemoryApiKey = ''
+}
+
+// Load config from localStorage (excluding API key for security)
 export const loadConfig = async (): Promise<ShieldFlowConfig> => {
   await simulateDelay()
   try {
     const stored = localStorage.getItem(CONFIG_KEY)
     if (stored) {
-      return JSON.parse(stored)
+      const parsed = JSON.parse(stored)
+      // Restore API key from memory if available
+      if (inMemoryApiKey && parsed.upstreamLLM) {
+        parsed.upstreamLLM.apiKey = inMemoryApiKey
+      }
+      return parsed
     }
   } catch (e) {
     console.error('Failed to load config:', e)
@@ -161,10 +185,22 @@ export const loadConfig = async (): Promise<ShieldFlowConfig> => {
   return { ...defaultConfig }
 }
 
-// Save config to localStorage
+// Save config to localStorage (API key handled separately in memory)
 export const saveConfig = async (config: ShieldFlowConfig): Promise<void> => {
   await simulateDelay(200)
-  localStorage.setItem(CONFIG_KEY, JSON.stringify(config))
+  // Store API key in memory before removing from config
+  if (config.upstreamLLM?.apiKey) {
+    inMemoryApiKey = config.upstreamLLM.apiKey
+  }
+  // Remove API key from config before saving to localStorage
+  const configToSave = {
+    ...config,
+    upstreamLLM: {
+      ...config.upstreamLLM,
+      apiKey: '',
+    },
+  }
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(configToSave))
 }
 
 // Load policies
@@ -189,6 +225,10 @@ export const toggleShieldFlow = async (enabled: boolean): Promise<void> => {
 
 // Update upstream LLM settings
 export const updateUpstreamLLM = async (llm: ShieldFlowConfig['upstreamLLM']): Promise<void> => {
+  // Store API key in memory before updating
+  if (llm?.apiKey) {
+    inMemoryApiKey = llm.apiKey
+  }
   const config = await loadConfig()
   config.upstreamLLM = llm
   await saveConfig(config)

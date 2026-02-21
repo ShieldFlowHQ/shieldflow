@@ -3,8 +3,6 @@ name: CI
 on:
   push:
     branches: [main]
-    tags:
-      - 'v*'
   pull_request:
     branches: [main]
 
@@ -91,33 +89,3 @@ jobs:
           name: sbom-cyclonedx
           path: sbom.json
           retention-days: 90
-
-  publish:
-    needs: [test, security]
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install build dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install build twine
-
-      - name: Build package
-        run: python -m build
-
-      - name: Check package
-        run: twine check dist/*
-
-      - name: Publish to PyPI
-        uses: pypa/gh-pypi-publisher@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          user: __token__
-          repository_url: https://upload.pypi.org/legacy/
