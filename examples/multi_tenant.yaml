@@ -1,0 +1,113 @@
+# Multi-Tenant ShieldFlow Configuration
+#
+# This example demonstrates how to configure ShieldFlow for multiple tenants,
+# each with their own trust policy, rate limits, and settings.
+#
+# Usage:
+#   shieldflow proxy --config multi_tenant.yaml
+#
+# Tokens:
+#   - prod_token_abc123 (Production app - strict)
+#   - dev_token_def456 (Development - permissive)
+#   - partner_token_ghi789 (Partner integration - custom)
+
+# Upstream provider configuration
+upstream:
+  url: https://api.openai.com
+  api_key: ${OPENAI_API_KEY}
+  timeout: 60.0
+
+# API keys that can access this proxy
+# In production, use secure secret management
+api_keys:
+  - prod_token_abc123
+  - dev_token_def456
+  - partner_token_ghi789
+
+# Default trust level for unauthenticated tenants
+default_trust: user
+
+# Per-tenant configuration overrides
+tenants:
+  # Production app - strict policy, high rate limit
+  prod_token_abc123:
+    display_name: Production App
+    rate_limit_rpm: 1000
+    default_trust: user
+    policy:
+      actions:
+        exec:
+          min_trust: owner
+          never_auto: true
+        file.delete:
+          min_trust: owner
+          never_auto: true
+        config.modify:
+          min_trust: owner
+          never_auto: true
+        credential.read:
+          min_trust: owner
+          never_auto: true
+        data.bulk_export:
+          min_trust: owner
+          never_auto: true
+
+  # Development - permissive policy, low rate limit
+  dev_token_def456:
+    display_name: Development
+    rate_limit_rpm: 60
+    default_trust: system
+    policy:
+      actions:
+        exec:
+          min_trust: user
+        file.write:
+          min_trust: user
+
+  # Partner integration - custom tool allowlist
+  partner_token_ghi789:
+    display_name: Partner Integration
+    rate_limit_rpm: 200
+    default_trust: agent
+    policy:
+      actions:
+        # Only allow specific tools
+        web_search:
+          min_trust: none
+        web_fetch:
+          min_trust: none
+        message.send:
+          min_trust: user
+        # Block dangerous tools entirely
+        exec:
+          min_trust: owner
+          never_auto: true
+        file.delete:
+          min_trust: owner
+          never_auto: true
+
+# Data classification rules
+data_classification:
+  - name: restricted
+    patterns:
+      - "password\\s*[:=]"
+      - "api[_-]?key\\s*[:=]"
+      - "-----BEGIN .* PRIVATE KEY-----"
+      - "-----BEGIN .* KEY-----"
+    external_share: block
+    never_auto: true
+
+  - name: internal
+    patterns:
+      - "employee|staff\\s+list"
+      - "client\\s+list|customer\\s+list"
+      - "salary|compensation|payroll"
+      - "health\\s+record|medical"
+    external_share: confirm
+
+  - name: public
+    patterns: []
+    external_share: allow
+
+# Audit logging
+audit_log_path: /var/log/shieldflow/audit.jsonl
