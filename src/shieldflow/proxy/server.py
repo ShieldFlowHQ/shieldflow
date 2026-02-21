@@ -834,6 +834,8 @@ def create_app(
         upstream_headers = {
             "Authorization": f"Bearer {config.upstream.api_key}",
             "Content-Type": "application/json",
+            "X-Request-ID": request_id,  # For distributed tracing
+            "X-ShieldFlow-Request-ID": request_id,  # Our own trace ID
         }
         upstream_url = f"{config.upstream.url}/v1/chat/completions"
 
