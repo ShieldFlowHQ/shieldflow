@@ -245,6 +245,11 @@ class UpstreamConfig:
     api_key: str = ""
     timeout: float = 60.0
 
+    def __repr__(self) -> str:
+        """Mask API key in repr to prevent accidental exposure."""
+        masked_key = "***" if self.api_key else ""
+        return f"UpstreamConfig(url={self.url!r}, api_key={masked_key}, timeout={self.timeout})"
+
 
 @dataclass
 class ProxyConfig:
@@ -269,6 +274,15 @@ class ProxyConfig:
     default_trust: TrustLevel = TrustLevel.USER
     host: str = "0.0.0.0"
     port: int = 8080
+
+    def __repr__(self) -> str:
+        """Mask sensitive fields in repr."""
+        masked_keys = ["***" if k else "" for k in self.api_keys]
+        return (
+            f"ProxyConfig(upstream={self.upstream!r}, api_keys={masked_keys}, "
+            f"policy_path={self.policy_path!r}, audit_log_path={self.audit_log_path!r}, "
+            f"default_trust={self.default_trust}, host={self.host!r}, port={self.port})"
+        )
 
     # ── MCP server trust policies ────────────────────────────────────── #
     mcp_servers: dict[str, MCPServerPolicy] = field(default_factory=dict)
