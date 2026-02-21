@@ -31,6 +31,7 @@ Acceptance criteria (Issue #8)
 
 from __future__ import annotations
 
+import html as _html
 import json
 import os
 import sqlite3

@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import os
 import signal
 import sys
 import time
@@ -78,7 +79,7 @@ _shutdown_timeout: float = 30.0  # seconds to wait for in-flight requests
 def _create_shutdown_handler(ready_event: signal.Event | None = None):
     """Create a shutdown handler that sets the shutdown event."""
     def shutdown_handler(signum, frame):
-        nonlocal _shutdown_event
+        global _shutdown_event
         if _shutdown_event:
             _shutdown_event.set()
             print(f"\n🚪 Received signal {signum}, initiating graceful shutdown...")
